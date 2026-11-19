@@ -1,0 +1,5 @@
+# Host-side NFS mount; app stays unprivileged. Set NFS_MOUNT_PATH to the mounted directory.
+services:
+  app:
+    volumes:
+      - "${NFS_MOUNT_PATH:?Set host NFS mount directory}:/network/nfs"
