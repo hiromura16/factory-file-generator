@@ -366,6 +366,7 @@ class ImageOptions(Model):
 
 
 class FileOptions(Model):
+    completion_mode: Literal["manifest-v2", "lakehouse-products-local"] = "manifest-v2"
     formats: list[
         Literal["json", "csv", "image", "xlsx", "xml", "parquet", "avro", "pdf"]
     ] = Field(

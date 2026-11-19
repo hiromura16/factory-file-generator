@@ -756,6 +756,16 @@
           "$ref": "#/$defs/ImageOptions",
           "title": "疑似検査画像の条件",
           "description": "格子・グラデーション・ドットの人工画像を再現可能に生成します。外部画像検索やAI APIは使用しません。"
+        },
+        "completion_mode": {
+          "default": "manifest-v2",
+          "enum": [
+            "manifest-v2",
+            "lakehouse-products-local"
+          ],
+          "type": "string",
+          "title": "完了通知形式",
+          "description": "既定はv2。local製品CSV試験限定モードは隣接SHA256 readyを出力し、その他の形式・接続・異常注入を拒否します。"
         }
       },
       "title": "FileOptions",

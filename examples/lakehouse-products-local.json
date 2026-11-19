@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "name": "Lakehouse synthetic products",
+  "connection_id": "synthetic-local",
+  "run_key": "abc123def456",
+  "seed": 42,
+  "rows": 2,
+  "start_sequence": 1,
+  "batch_size": 2,
+  "target_rate": 0,
+  "fields": [
+    {
+      "name": "product_id",
+      "data_type": "string",
+      "generator": "template",
+      "template": "SYN-P-{sequence:04d}",
+      "primary_key": true
+    },
+    {
+      "name": "product_name",
+      "data_type": "string",
+      "generator": "template",
+      "template": "Synthetic product {sequence}"
+    },
+    {
+      "name": "product_family",
+      "data_type": "string",
+      "generator": "constant",
+      "value": "synthetic"
+    },
+    {
+      "name": "unit",
+      "data_type": "string",
+      "generator": "constant",
+      "value": "pcs"
+    },
+    {
+      "name": "standard_cycle_seconds",
+      "data_type": "decimal",
+      "generator": "constant",
+      "value": "12.500",
+      "precision": 18,
+      "scale": 3
+    },
+    {
+      "name": "updated_at",
+      "data_type": "datetime",
+      "generator": "constant",
+      "value": "2026-01-01T00:00:00+00:00"
+    }
+  ],
+  "files": {
+    "formats": [
+      "csv"
+    ],
+    "records_per_file": 2,
+    "path_template": ".",
+    "filename_template": "erp_products__{run_key}_{sequence:04d}",
+    "csv_encoding": "utf-8",
+    "csv_header": true,
+    "compression": "none",
+    "write_manifest": true,
+    "write_sidecars": false,
+    "completion_mode": "lakehouse-products-local"
+  },
+  "anomalies": [],
+  "faults": {
+    "enabled": false
+  }
+}
