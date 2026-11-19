@@ -1,3 +1,4 @@
+# モジュール読解: 交換文書を生成後に読み戻し、値と安全な文字列表現を確認する。
 import io
 from xml.etree import ElementTree
 from config import RunSpec, FieldRule
@@ -5,6 +6,7 @@ from generation import generate_record
 from document_formats import documents
 
 
+# 読解 test_business_documents_are_readable_and_values_round_trip: 複数文書形式を実ライブラリで読み戻し、型・値・列の往復を確認する。
 def test_business_documents_are_readable_and_values_round_trip():
     s = RunSpec(
         rows=3,
@@ -53,6 +55,7 @@ def test_business_documents_are_readable_and_values_round_trip():
     assert outputs["pdf"].startswith(b"%PDF-")
 
 
+# 読解 test_excel_defaults_to_literal_formula_text: 数式に見える生成文字列が既定設定で表計算の文字列セルのままであることを確かめる。
 def test_excel_defaults_to_literal_formula_text():
     s = RunSpec(fields=[FieldRule(name="formula", generator="constant", value="=1+1")])
     s.files.formats = ["xlsx"]

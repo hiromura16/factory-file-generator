@@ -1,3 +1,4 @@
+# モジュール読解: 未設定のローカル作業領域向けに、既存ファイルを上書きせず秘密値ファイルと環境設定を生成する。ヘルプは従来のモジュール説明を利用する。
 """Create private local settings without printing or overwriting credentials."""
 
 import argparse

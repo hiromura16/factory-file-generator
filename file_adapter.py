@@ -1,3 +1,5 @@
+# モジュール読解: ファイル出力の入口。通常形式は成果物とv2マニフェスト、明示モードは専用ローカル処理へ渡す。
+# 出力先と容量を検査し、確定済み成果物の自動ロールバックは行わない。
 """Configurable landing-directory and S3-compatible destinations."""
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from generation import (
 )
 
 
+# 読解 allowed_directory: 正規化した出力先が許可ルート内かを確認し、必要なディレクトリを作る。
 def allowed_directory(value):
     data = Path(os.environ.get("DATA_DIR", "./data")).resolve()
     roots = [
@@ -45,6 +48,9 @@ def allowed_directory(value):
     return path
 
 
+# 読解 atomic_write: 一時ファイルを同期してから最終名へ置換し、ディレクトリも同期する。
+#
+# 事前の存在検査は並行書込みとの排他ではない。呼出側で競合を避ける。
 def atomic_write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() or path.is_symlink():
@@ -67,6 +73,7 @@ def atomic_write(path, data):
         raise
 
 
+# 読解 s3_client: 明示された認証とTLS設定からS3クライアントを構築する。
 def s3_client(profile):
     if not profile.access_key or not profile.secret_key:
         raise GenerationError("アクセスキーとシークレットキーが必要です")
@@ -98,6 +105,7 @@ def s3_client(profile):
     )
 
 
+# 読解 test_connection: 接続先の参照・書込可否情報を確認する。データ生成は行わない。
 def test_connection(profile):
     if profile.kind in {"local", "nfs"}:
         path = allowed_directory(profile.directory)
@@ -126,7 +134,10 @@ def test_connection(profile):
     return {"status": "connected", "bucket": profile.bucket, "prefix": profile.prefix}
 
 
+# 読解 Destination: 実行の出力パスを束ね、ローカル・リモート・S3の書込みを振り分ける。
 class Destination:
+    # 読解 Destination.__init__: 接続と生成条件から実行用prefixを展開・検査し、必要な出力先を準備する。
+    # NFSマウント確認やリモートクライアント生成を伴い得る。終了時はcloseで解放する。
     def __init__(self, profile, spec, job_id):
         self.profile = profile
         self.prefix = render(
@@ -149,6 +160,7 @@ class Destination:
         if not self.root and not self.client and not self.remote:
             raise GenerationError("ファイル出力先を指定してください")
 
+    # 読解 Destination.key: 絶対パスと親参照を拒否し、設定済み接頭辞を含むS3キーを作る。
     def key(self, relative):
         path = PurePosixPath(relative)
         if path.is_absolute() or ".." in path.parts:
@@ -157,6 +169,7 @@ class Destination:
             p for p in [self.profile.prefix.strip("/"), self.prefix, relative] if p
         )
 
+    # 読解 Destination.write: 出力先別の容量・パス・上書き条件に従って一成果物を書き込む。
     def write(self, relative, data, content_type):
         if self.root:
             if shutil.disk_usage(self.root).free < 2 * 1024**3:
@@ -177,6 +190,7 @@ class Destination:
                 IfNoneMatch="*",
             )
 
+    # 読解 Destination.close: 確保したリモート接続とS3クライアントを解放する。
     def close(self):
         if self.remote:
             self.remote.close()
@@ -184,6 +198,8 @@ class Destination:
             self.client.close()
 
 
+# 読解 image_bytes: 画像条件と再現キーから模様・ノイズ・欠陥を描き、符号化バイト列と欠陥有無を返す。
+# ファイル書込みは行わず、乱数シードはキーから固定する。
 def image_bytes(options, key):
     rng = random.Random(int(key[:16], 16))
     background = ImageColor.getrgb(options.background)
@@ -242,6 +258,7 @@ def image_bytes(options, key):
     return output.getvalue(), defective
 
 
+# 読解 validate_path: 出力名として使える相対パスかを確認する。ファイルの存在は調べない。
 def validate_path(value, empty=False):
     path = PurePosixPath(value)
     if (
@@ -255,6 +272,8 @@ def validate_path(value, empty=False):
     return value
 
 
+# 読解 handle: 設定のcompletion_modeを判定し、製品CSV専用の明示モードは専用処理へ直ちに委譲する。
+# 既定経路はバッチごとの成果物と任意v2マニフェストを生成する。部分成功の巻戻しはしない。
 def handle(spec, ctx, profile, store):
     if spec.files.completion_mode == "lakehouse-products-local":
         from lakehouse_export import handle_products
@@ -290,6 +309,8 @@ def handle(spec, ctx, profile, store):
                 )
             artifacts = []
 
+            # 読解 handle.write: 形式別の試験用破損・圧縮を適用し、容量上限を確認して成果物を書き出す。
+            # バイト数とチェックサムは実際の出力に対応させ、成果物一覧と出力履歴を更新する。
             def write(relative, data, content_type, compress=False):
                 nonlocal total_bytes
                 mode = spec.faults.artifact_mode if spec.faults.enabled else "none"
@@ -482,6 +503,7 @@ def handle(spec, ctx, profile, store):
         destination.close()
 
 
+# 読解 artifact: 実行の直近出力から生成画像を選び、保存先に応じた応答を返す。
 def artifact(run, store):
     if run["spec"].get("version") != 2:
         raise HTTPException(404, "旧形式の画像は元のランディングから参照してください")
