@@ -1,3 +1,4 @@
+# モジュール読解: 一時ランディング先だけでファイル形式・命名・衝突・完了通知を検証する。
 import gzip
 import json
 
@@ -10,6 +11,7 @@ from file_adapter import atomic_write, handle, image_bytes
 from conftest import Context
 
 
+# 読解 test_custom_json_csv_compression_images_and_manifest: 独自JSON・CSVの設定、圧縮、画像、完了マニフェストが同じ出力で整合することを確かめる。
 def test_custom_json_csv_compression_images_and_manifest(tmp_path):
     profile = ConnectionProfile(
         id="local", name="landing", kind="local", directory=str(tmp_path / "exports")
@@ -49,6 +51,7 @@ def test_custom_json_csv_compression_images_and_manifest(tmp_path):
     assert ctx.stats["processed"] == 4 and ctx.stats["files"] == 10
 
 
+# 読解 test_one_object_per_file_and_path_templates: 一行一ファイルと実行情報を使ったパステンプレートを検証する。
 def test_one_object_per_file_and_path_templates(tmp_path):
     profile = ConnectionProfile(
         id="local", name="local", kind="local", directory=str(tmp_path / "exports")
@@ -72,6 +75,7 @@ def test_one_object_per_file_and_path_templates(tmp_path):
         handle(spec, Context(), profile, None)
 
 
+# 読解 test_deterministic_image_and_no_overwrite: 同じ条件で画像が再現でき、既存出力を上書きしないことを確かめる。
 def test_deterministic_image_and_no_overwrite(tmp_path):
     spec = RunSpec()
     spec.files.image.width = 32
@@ -86,6 +90,7 @@ def test_deterministic_image_and_no_overwrite(tmp_path):
     assert target.read_bytes() == b"first" and not list(tmp_path.glob("*.part"))
 
 
+# 読解 test_nfs_profile_refuses_non_nfs_directory: 通常の一時ディレクトリをNFSとして扱わず拒否することを確かめる。
 def test_nfs_profile_refuses_non_nfs_directory(tmp_path):
     profile = ConnectionProfile(
         id="nfs", name="NFS", kind="nfs", directory=str(tmp_path / "exports")
@@ -96,6 +101,7 @@ def test_nfs_profile_refuses_non_nfs_directory(tmp_path):
         test_connection(profile)
 
 
+# 読解 test_interrupted_bundle_has_no_ready_marker_and_checksum_corruption_is_explicit: 中断時に完了印が現れず、意図的なチェックサム破損は失敗と区別して観測できることを確かめる。
 def test_interrupted_bundle_has_no_ready_marker_and_checksum_corruption_is_explicit(
     tmp_path,
 ):
@@ -111,6 +117,7 @@ def test_interrupted_bundle_has_no_ready_marker_and_checksum_corruption_is_expli
         faults=FaultOptions(enabled=True, stage="after_write", action="fail"),
     )
     spec.files.formats = ["json"]
+    # コールバック: テスト専用プロファイルを閉じ込め、Runtimeが渡すspec/contextを実アダプターへ中継する。
     runtime = Runtime("files", lambda s, c: handle(s, c, profile, None), 100000000)
     job = runtime.start(spec)
     runtime.thread.join(timeout=5)

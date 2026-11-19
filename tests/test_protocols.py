@@ -1,3 +1,4 @@
+# モジュール読解: 明示的に有効化された場合だけ別途用意した共有サービスとの統合動作を確認する。
 """Opt-in real storage smoke tests; profiles and credentials stay outside Git."""
 
 import json
@@ -13,6 +14,7 @@ from file_adapter import handle, test_connection as check_connection
 from file_connections import Remote
 
 
+# 読解 test_real_smb_sftp_ftp_destinations: 所定の統合フィクスチャを使い、各方式の読み書きと既存出力の扱いを確かめる。通常のローカル試験では実行しない。
 @pytest.mark.skipif(
     not os.environ.get("FILE_TEST_PROFILES_FILE"),
     reason="External file destinations opt-in",
