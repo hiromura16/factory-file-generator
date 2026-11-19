@@ -256,6 +256,10 @@ def validate_path(value, empty=False):
 
 
 def handle(spec, ctx, profile, store):
+    if spec.files.completion_mode == "lakehouse-products-local":
+        from lakehouse_export import handle_products
+
+        return handle_products(spec, ctx, profile)
     destination = Destination(profile, spec, ctx.run_id)
     total_bytes = 0
     group_size = batch_limit(spec, spec.files.records_per_file)
