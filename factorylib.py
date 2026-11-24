@@ -235,38 +235,54 @@ class Runtime:
         if spec.rows > self.max_cycles:
             raise HTTPException(422, f"1回の上限は{self.max_cycles}レコードです")
 
-    def start(self, spec):
-        """実行枠を排他確保し、履歴作成後にワーカースレッドを開始する。"""
-        self.validate(spec)
-        with self.lock:
-            if self.active:
-                raise HTTPException(
-                    409, "実行中です。完了または停止後に開始してください"
-                )
-            run_id = secrets.token_hex(12)
-            now = datetime.now(timezone.utc).isoformat()
-            with self.connect() as conn:
-                conn.execute(
-                    "INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?)",
-                    (
-                        run_id,
-                        "running",
-                        spec.model_dump_json(),
-                        "{}",
-                        "[]",
-                        None,
-                        now,
-                        now,
-                    ),
-                )
-            self.active, self.stop = run_id, threading.Event()
-            self.thread = threading.Thread(
-                target=self.execute, args=(run_id, spec, self.stop), daemon=True
-            )
-            self.thread.start()
-            return self.get(run_id)
+    def start(self, spec, *, handler=None, close=None):
+        """実行枠を排他確保し、履歴作成後にスレッドを開始する。
 
-    def execute(self, run_id, spec, stop):
+        任意の終了処理は、受付失敗時かワーカー終了時のどちらか一方だけに行う。
+        """
+        transferred = False
+        try:
+            self.validate(spec)
+            with self.lock:
+                if self.active:
+                    raise HTTPException(
+                        409, "実行中です。完了または停止後に開始してください"
+                    )
+                run_id = secrets.token_hex(12)
+                now = datetime.now(timezone.utc).isoformat()
+                with self.connect() as conn:
+                    conn.execute(
+                        "INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?)",
+                        (
+                            run_id,
+                            "running",
+                            spec.model_dump_json(),
+                            "{}",
+                            "[]",
+                            None,
+                            now,
+                            now,
+                        ),
+                    )
+                self.active, self.stop = run_id, threading.Event()
+                self.thread = threading.Thread(
+                    target=self.execute,
+                    args=(run_id, spec, self.stop, handler, close),
+                    daemon=True,
+                )
+                try:
+                    self.thread.start()
+                except BaseException:
+                    self.active, self.thread = None, None
+                    self.update(run_id, status="failed", error="worker_start_failed")
+                    raise
+                transferred = True
+                return self.get(run_id)
+        finally:
+            if close and not transferred:
+                close()
+
+    def execute(self, run_id, spec, stop, handler=None, close=None):
         """アダプターの終了状態を保存し、最後に実行枠を解放する。
 
         ドライバー例外の本文は秘密値を含む可能性があるため、既知の安全な
@@ -278,7 +294,7 @@ class Runtime:
         try:
             if spec.initial_delay_seconds:
                 ctx.wait(spec.initial_delay_seconds * 1000)
-            self.handler(spec, ctx)
+            (handler or self.handler)(spec, ctx)
         except JobCancelled:
             status = "stopped"
         except GenerationError as exc:
@@ -300,15 +316,21 @@ class Runtime:
                 str(exc) if str(exc) in safe_codes else type(exc).__name__,
             )
         finally:
-            self.update(
-                run_id,
-                status=status,
-                error=error,
-                stats=ctx.stats,
-                outputs=ctx.outputs[-10:],
-            )
-            with self.lock:
-                self.active = None
+            try:
+                if close:
+                    close()
+            finally:
+                try:
+                    self.update(
+                        run_id,
+                        status=status,
+                        error=error,
+                        stats=ctx.stats,
+                        outputs=ctx.outputs[-10:],
+                    )
+                finally:
+                    with self.lock:
+                        self.active = None
 
     def cancel(self, run_id):
         """現在の実行だけに停止を要求する。即時ロールバックは保証しない。"""
@@ -337,6 +359,17 @@ class UploadedConnectionFile(BaseModel):
         pattern=r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+){0,3}$",
     )
     content_base64: str = Field(max_length=1500000)
+
+
+def local_landing_directory():
+    """アプリ設定で許可された既定のランディングフォルダを返す。"""
+    data = Path(os.environ.get("DATA_DIR", "./data")).resolve()
+    return os.environ.get("LANDING_DIR", str(data / "exports"))
+
+
+def normalized_landing_name(value):
+    """リンクを辿らず、出力先の設定名を比較できる絶対パスに揃える。"""
+    return Path(os.path.abspath(Path(value).expanduser()))
 
 
 # 読解 bootstrap_profiles: defaultが保存済みなら何も変更しない。未登録時だけ種類と環境設定から初期接続を保存する。
@@ -371,15 +404,11 @@ def bootstrap_profiles(kind, store):
                 ssl_mode="off",
             )
     elif kind == "files":
-        directory = os.environ.get(
-            "LANDING_DIR",
-            str(Path(os.environ.get("DATA_DIR", "./data")).resolve() / "exports"),
-        )
         profile = ConnectionProfile(
             id="default",
             name="ローカル ランディング",
             kind="local",
-            directory=directory,
+            directory=local_landing_directory(),
             ssl_mode="off",
         )
     elif os.environ.get("MQTT_HOST"):
@@ -412,6 +441,11 @@ def create_app(kind, title, adapter):
     root = Path(__file__).resolve().parent
     store = ConfigStore(Path(os.environ.get("DATA_DIR", "./data")) / "settings")
     bootstrap_profiles(kind, store)
+    landing_directory = (
+        normalized_landing_name(local_landing_directory())
+        if kind == "files"
+        else None
+    )
 
     # 読解 create_app.initial_preset: 初期SQL Server接続が同梱の検証DBを指す場合だけ、未指定schemaをsyntheticへ補完する。
     # 入力specを変更して返す。保存済みプリセットにはseed_presets側で再適用しない。
@@ -774,6 +808,42 @@ def create_app(kind, title, adapter):
         checked(spec)
         _, revision = profile(spec.connection_id, spec.connection_revision)
         return runtime.start(spec.model_copy(update={"connection_revision": revision}))
+
+    if kind == "files":
+
+        @app.post("/api/runs/quickstart", status_code=202)
+        def quickstart():
+            """編集状態とは無関係に、既定のローカル領域へJSONを30件生成する。"""
+            destination, revision = profile("default")
+            if (
+                destination.kind != "local"
+                or not destination.directory
+                or normalized_landing_name(destination.directory) != landing_directory
+            ):
+                raise HTTPException(
+                    409,
+                    "お試し生成にはアプリ既定のローカルランディングが必要です。"
+                    "出力先を手動で選ぶ場合は通常の生成画面をお使いください。",
+                )
+            spec = RunSpec(
+                name="お試しJSON 30件",
+                connection_id="default",
+                connection_revision=revision,
+                run_key="quickstart-json",
+                rows=30,
+                target_rate=0,
+                files={"formats": ["json"], "records_per_file": 30},
+            )
+            checked(spec)
+            root_fd = safe_call(adapter.open_quickstart_landing, landing_directory)
+
+            def generate_local(spec, ctx):
+                """保存済みディレクトリ名は再解決せず、受付時の参照だけを使う。"""
+                adapter.handle(spec, ctx, destination, store, local_root_fd=root_fd)
+
+            return runtime.start(
+                spec, handler=generate_local, close=lambda: os.close(root_fd)
+            )
 
     # 読解 create_app.runs: 実行履歴の一覧を返す。稼働状態の取得だけで新しいジョブを作らない。
     @app.get("/api/runs")

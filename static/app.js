@@ -16,6 +16,7 @@ const state = {
   current: null,
 };
 let uid = 0;
+let previewRevision = 0;
 const el =
   /* タグと属性からDOM要素を作る。on接頭辞はイベント登録に使い、本文はHTMLとして解釈しない。 */
   (tag, attrs = {}, text = "") => {
@@ -175,7 +176,7 @@ function control(name, schema, value, set, root) {
   if (name === "connection_id") {
     const input = el("select", { id });
     for (const p of state.connections)
-      input.append(el("option", { value: p.id }, p.name + " · " + p.kind));
+      input.append(el("option", { value: p.id }, p.name + " · " + (state.info.connection_help[p.kind]?.label || p.kind)));
     if (!state.connections.some(/* 編集中の接続IDが登録一覧にあるか確認する。なければ入力値を消さず未登録として表示する。 */ (p) => p.id === value))
       input.append(el("option", { value }, value + " (未登録)"));
     input.value = value;
@@ -309,11 +310,191 @@ function renderObject(container, schema, model, root, exclude = []) {
     );
   }
 }
+// 主要3形式を先に案内し、既存の追加形式も同じ契約で選べるようにする。
+const FILE_FORMATS = [
+  ["json", "JSON"], ["csv", "CSV"], ["image", "疑似画像"],
+  ["xlsx", "Excel"], ["xml", "XML"], ["parquet", "Parquet"],
+  ["avro", "Avro"], ["pdf", "PDF"],
+];
+
+// プレビュー前にも、何をいくつどこへ出すかを確認できるようにする。
+function updateFileSelection() {
+  const formats = state.spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
+  const profile = state.connections.find((item) => item.id === state.spec.connection_id);
+  $("#selectionSummary").textContent =
+    (formats.join("・") || "形式未選択") + " ／ " + state.spec.rows + "件 ／ " + (profile?.name || "出力先未登録");
+  invalidateFilePreview();
+}
+
+// 編集中または応答待ちのプレビューを、現在の設定の表示と混同しない。
+function invalidateFilePreview() {
+  previewRevision += 1;
+  $("#previewPanel").hidden = true;
+}
+
+// 実行モデルの形式だけを編集する。既存プリセットの形式と並び順を維持する。
+function renderFileFormats(parent) {
+  for (const [index, [key, label]] of FILE_FORMATS.entries()) {
+    const input = el("input", { type: "checkbox", value: key });
+    input.checked = state.spec.files.formats.includes(key);
+    input.addEventListener("change", () => {
+      const previous = state.spec.files.formats;
+      state.spec.files.formats = input.checked
+        ? [...previous.filter((value) => value !== key), key]
+        : previous.filter((value) => value !== key);
+      updateFileSelection();
+    });
+    const option = el("label", { class: "format-option" });
+    option.append(input, document.createTextNode(label));
+    parent[index < 3 ? 0 : 1].append(option);
+  }
+}
+
+// 更新・削除はファイル操作ではなく、既存の生成ルールで付ける任意のラベル。
+const FILE_OPERATION_FIELD = "file_event_operation";
+const FILE_OPERATIONS = ["insert", "update", "delete"];
+
+// この画面が扱えるルールだけを識別し、同名の手作業ルールは書き換えない。
+function fileOperationRule(field) {
+  return field?.name === FILE_OPERATION_FIELD && field.generator === "choice" &&
+    field.data_type === "string" && field.primary_key === false &&
+    field.null_probability === 0 && field.condition === null &&
+    JSON.stringify(field.choices) === JSON.stringify(FILE_OPERATIONS) &&
+    Array.isArray(field.weights) && field.weights.length === 3 &&
+    field.weights.every((value) => Number.isInteger(value) && value >= 0) &&
+    field.weights.reduce((sum, value) => sum + value, 0) === 100;
+}
+
+// 既存スキーマの重み付き選択へ保存するため、設定の再読込やプレビューでも同じ結果になる。
+function applyFileOperationRates(update, remove, root) {
+  if (![update, remove].every((value) => Number.isInteger(value) && value >= 0) ||
+      update + remove > 100) return "更新率と削除率の合計は100%以下の整数にしてください。";
+  const fields = state.spec.fields;
+  const index = fields.findIndex((field) => field.name.toLowerCase() === FILE_OPERATION_FIELD);
+  const existing = fields[index];
+  if (existing && !fileOperationRule(existing))
+    return "同名の独自項目があるため、更新率・削除率を設定できません。";
+  if (!update && !remove) {
+    if (existing) fields.splice(index, 1);
+    return "";
+  }
+  const field = {
+    ...(existing || defaultValue(root.$defs.FieldRule, root)),
+    name: FILE_OPERATION_FIELD,
+    data_type: "string",
+    generator: "choice",
+    primary_key: false,
+    null_probability: 0,
+    condition: null,
+    choices: FILE_OPERATIONS.slice(),
+    weights: [100 - update - remove, update, remove],
+  };
+  if (existing) fields[index] = field;
+  else fields.push(field);
+  return "";
+}
+
+// 割合欄の変更を検証し、正常時だけ生成項目・プレビューへ反映する。
+function renderFileOperationRates(body, root, refreshFields) {
+  const existing = state.spec.fields.find(fileOperationRule);
+  const inputs = ["更新率（%）", "削除率（%）"].map((label, index) => {
+    const item = el("label", {}, label);
+    const input = el("input", { type: "number", min: "0", max: "100", step: "1", required: "" });
+    input.value = existing?.weights[index + 1] ?? 0;
+    item.append(input);
+    body.append(item);
+    return input;
+  });
+  const change = () => {
+    const message = applyFileOperationRates(...inputs.map((input) => input.valueAsNumber), root);
+    inputs.forEach((input) => input.setCustomValidity(message));
+    if (!message) {
+      refreshFields();
+      updateFileSelection();
+    }
+  };
+  inputs.forEach((input) => input.addEventListener("input", change));
+  if (state.spec.fields.some((field) => field.name.toLowerCase() === FILE_OPERATION_FIELD && !fileOperationRule(field))) {
+    inputs.forEach((input) => { input.disabled = true; });
+    body.append(el("p", { class: "muted" }, "同名の独自生成項目を優先しています。"));
+  }
+}
+
+// ファイル生成の基本操作を三段階に揃え、高度な項目は個別に展開できるようにする。
+function renderFileRun(target, root) {
+  const props = root.properties;
+  const [formats, formatBody] = block("Step 1. 生成する形式", "必要な形式だけを選択できます。複数選択もできます。");
+  const [extra, extraBody] = block("その他の形式", "", false);
+  renderFileFormats([formatBody, extraBody]);
+  formats.append(extra);
+  const [settings, body] = block("Step 2. 件数とバリエーション", "シード値を揃えるとデータを再現できます。更新率・削除率は出力行の操作ラベルの割合で、既存データは変更しません。");
+  for (const key of ["rows", "seed"]) {
+    body.append(control(key, props[key], state.spec[key], (value) => {
+      state.spec[key] = value;
+      updateFileSelection();
+    }, root));
+  }
+  const [advanced, advancedBody] = block("その他の生成条件", "生成速度、分割、命名などを調整します。", false);
+  renderObject(advancedBody, root, state.spec, root, [
+    "version", "rows", "seed", "connection_id", "connection_revision", "task",
+    "parameters", "fields", "anomalies", "faults", "sql", "files", "stream",
+  ]);
+  const [fileOptions, fileBody] = block("形式ごとの詳細と完了通知", "選んだ形式に応じて、文字コードや画像サイズなどを変更できます。", false);
+  renderObject(fileBody, deref(props.files, root), state.spec.files, root, ["formats"]);
+  settings.append(advanced, fileOptions);
+  const [parameters, parametersBody] = block("共有パラメーター", "複数の項目から値を参照できます。", false);
+  parametersBody.append(control("parameters", props.parameters, state.spec.parameters,
+    (value) => (state.spec.parameters = value), root));
+  const [fields, fieldsBody] = block("生成する項目", "上から順に値を作ります。", false);
+  fieldsBody.style.display = "block";
+  renderFields(fieldsBody);
+  renderFileOperationRates(body, root, () => renderFields(fieldsBody));
+  const [anomalies, anomaliesBody] = block("異常値の設定", "期間・割合・条件を指定して、異常値を含むデータを生成します。", false);
+  anomaliesBody.style.display = "block";
+  renderAnomalies(anomaliesBody);
+  const [faults, faultsBody] = block("出力障害のシミュレーション", "処理の遅延・停止や不正ファイルを再現します。", false);
+  renderObject(faultsBody, deref(props.faults, root), state.spec.faults, root);
+  settings.append(parameters, fields, anomalies, faults);
+  const [destination, destinationBody] = block("Step 3. 出力先", "ローカルランディング、共有フォルダ（NFS・SMB）、その他の登録済み出力先を選びます。");
+  destinationBody.append(control("connection_id", { ...props.connection_id, title: "出力先" }, state.spec.connection_id, (value) => {
+    state.spec.connection_id = value;
+    state.spec.connection_revision = null;
+    updateFileSelection();
+  }, root));
+  target.append(formats, settings, destination);
+  updateFileSelection();
+}
+
+// 共有マウントもあり得るので、通常実行では出力先を確認して版を固定する。
+function fileRunSubmission() {
+  const spec = runSpec();
+  const destination = state.connections.find((item) => item.id === spec.connection_id);
+  if (!destination) throw new Error("登録済みの出力先を選んでください。");
+  if (!window.confirm("「" + destination.name + "」へファイルを出力します。続行しますか？")) return null;
+  spec.connection_revision = destination.revision;
+  return spec;
+}
+
+// 編集中の出力先や生成設定は送らず、サーバー固定のお試し生成だけを開始する。
+async function startQuickFileRun() {
+  await showStartedFileRun(await api("/api/runs/quickstart", {}));
+}
+
+// 受付結果を実行履歴へつなぐ。受付時点では生成完了と表示しない。
+async function showStartedFileRun(run) {
+  state.current = run.id;
+  notify("生成を開始しました。実行ID: " + run.id);
+  await refreshHistory();
+}
 // 共通条件・生成列・出力方式・異常条件を、現在のサービスと設定に合わせて再描画する。
 function renderRun() {
   const root = state.schemas.run,
     target = $("#runEditor");
   target.replaceChildren();
+  if (state.info.kind === "files") {
+    renderFileRun(target, root);
+    return;
+  }
   const [common, body] = block(
     "01 / 実行条件",
     "生成量と速度、再現性を決めます。接続は保存済みのプロファイルを選択します。",
@@ -529,6 +710,8 @@ function validateForm(selector) {
 // フォームを検証した後に現在の実行設定を複製して返す。送信側の加工は編集中モデルから分離する。
 function runSpec() {
   validateForm("#runForm");
+  if (state.info.kind === "files" && !state.spec.files.formats.length)
+    throw new Error("生成する形式を1つ以上選んでください。");
   return clone(state.spec);
 }
 const fieldsByKind = {
@@ -595,7 +778,7 @@ function editConnection(profile) {
   state.profile = { ...defaultValue(root, root), ...clone(profile) };
   for (const key of ["revision", "configured_secrets", "configured_headers"])
     delete state.profile[key];
-  $("#connectionTitle").textContent = profile.name || "新しい接続先";
+  $("#connectionTitle").textContent = profile.name || "新しい出力先";
   $("#secretState").textContent =
     "保存済み認証情報: " +
     ((profile.configured_secrets || []).join(", ") || "なし") +
@@ -999,7 +1182,7 @@ function download(value, name) {
 function previewResult(data) {
   $("#previewPanel").hidden = false;
   $("#previewPanel .badge").hidden = data.writes !== false;
-  $("#previewNote").textContent = data.note || "接続先の処理結果";
+  $("#previewNote").textContent = data.note || "出力結果";
   $("#previewJson").textContent = JSON.stringify(data, null, 2);
   const area = $("#previewTable");
   area.replaceChildren();
@@ -1240,7 +1423,7 @@ async function init() {
   ]);
   state.spec = clone(state.info.defaults);
   $("#title").textContent = state.info.title;
-  document.title = state.info.title + " · Data Source Studio";
+  document.title = state.info.title;
   $("#health").textContent = "ONLINE · " + state.info.kind.toUpperCase();
   await Promise.all([refreshConnections(), refreshPresets()]);
   editConnection(state.connections[0]);
@@ -1327,15 +1510,21 @@ async function init() {
       notify(err.message, true);
     }
   });
-  action("#preview", /* 現在のフォームを検証してプレビューに送り、生成開始とは区別して結果だけを表示する。 */ async () =>
-    previewResult(await api("/api/preview", runSpec())),
-  );
-  action("#start", /* 検証済み設定で生成を開始し、返された実行IDを保持して表示を更新する。 */ async () => {
-    const run = await api("/api/runs", runSpec());
-    state.current = run.id;
-    notify("生成を開始しました。実行ID: " + run.id);
-    await refreshHistory();
+  action("#preview", /* 書き込みなしの見本を取得し、待機中の変更で古くなった応答は表示しない。 */ async () => {
+    const revision = previewRevision;
+    const result = await api("/api/preview", runSpec());
+    if (revision === previewRevision) previewResult(result);
   });
+  action("#start", /* 出力先・形式を確認して受付済み実行を表示する。 */ async () => {
+    const spec = state.info.kind === "files" ? fileRunSubmission() : runSpec();
+    if (spec) await showStartedFileRun(await api("/api/runs", spec));
+  });
+  action("#quickstart", startQuickFileRun);
+  $("#quickstart").disabled = state.info.kind !== "files";
+  $("#runForm").addEventListener("submit", (event) => event.preventDefault());
+  for (const event of ["input", "change", "click"]) {
+    $("#runForm").addEventListener(event, invalidateFilePreview);
+  }
   for (const [id, path] of [
     ["#inspectTable", "inspect"],
     ["#showDdl", "ddl"],
@@ -1347,7 +1536,7 @@ async function init() {
   action("#newConnection", /* 現在時刻から仮IDを作り、許可種別の先頭で新規接続の編集画面を開く。保存前に通信はしない。 */ () =>
     editConnection({
       id: "connection-" + Date.now().toString(36),
-      name: "新しい接続先",
+      name: "新しい出力先",
       kind: state.info.connection_kinds[0],
     }),
   );
@@ -1356,7 +1545,7 @@ async function init() {
     const saved = await api("/api/connections", state.profile);
     await refreshConnections();
     editConnection(saved);
-    notify("接続プロファイルを保存しました。rev " + saved.revision);
+    notify("出力先プロファイルを保存しました。rev " + saved.revision);
   });
   action("#testConnection", /* 現在の編集内容ではなく指定IDの保存済み設定で接続試験し、その結果を通知する。 */ async () => {
     const result = await api(
