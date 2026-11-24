@@ -310,9 +310,9 @@ function renderObject(container, schema, model, root, exclude = []) {
     );
   }
 }
-// 主要3形式を先に案内し、既存の追加形式も同じ契約で選べるようにする。
+// 主な形式は独立して選べる。既存の追加形式は「その他」に残す。
 const FILE_FORMATS = [
-  ["json", "JSON"], ["csv", "CSV"], ["image", "疑似画像"],
+  ["json", "JSON"], ["csv", "CSV"], ["image", "画像（合成）"],
   ["xlsx", "Excel"], ["xml", "XML"], ["parquet", "Parquet"],
   ["avro", "Avro"], ["pdf", "PDF"],
 ];
@@ -322,7 +322,9 @@ function updateFileSelection() {
   const formats = state.spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
   const profile = state.connections.find((item) => item.id === state.spec.connection_id);
   $("#selectionSummary").textContent =
-    (formats.join("・") || "形式未選択") + " ／ " + state.spec.rows + "件 ／ " + (profile?.name || "出力先未登録");
+    (formats.join("・") || "形式未選択") + " ／ " + state.spec.rows + "件 ／ " + (profile?.name || "出力先未登録") +
+    (state.spec.files.formats.includes("image") && state.spec.files.write_sidecars ? " ／ 画像の付帯JSONあり" : "");
+  $("#preview").disabled = $("#start").disabled = !formats.length;
   invalidateFilePreview();
 }
 
@@ -332,21 +334,89 @@ function invalidateFilePreview() {
   $("#previewPanel").hidden = true;
 }
 
-// 実行モデルの形式だけを編集する。既存プリセットの形式と並び順を維持する。
-function renderFileFormats(parent) {
+// 新規画面は未選択から始め、プリセットを選んだときだけ保存済み形式を復元する。
+function newFileSpec() {
+  const spec = clone(state.info.defaults);
+  spec.files.formats = [];
+  spec.files.write_sidecars = false;
+  for (const field of spec.fields) delete field.primary_key;
+  return spec;
+}
+
+// 画面に共通契約のうちファイル生成に不要な設定を出さない。
+function fileSpecView(spec) {
+  if (state.info?.kind !== "files") return spec;
+  const view = clone(spec);
+  delete view.sql;
+  delete view.stream;
+  for (const field of view.fields || []) delete field.primary_key;
+  return view;
+}
+
+// 主要形式はチェックでも単独選択ボタンでも変更できる。別の形式を暗黙に追加しない。
+function renderFileFormats(groups) {
+  const inputs = new Map();
   for (const [index, [key, label]] of FILE_FORMATS.entries()) {
     const input = el("input", { type: "checkbox", value: key });
     input.checked = state.spec.files.formats.includes(key);
+    inputs.set(key, input);
     input.addEventListener("change", () => {
-      const previous = state.spec.files.formats;
-      state.spec.files.formats = input.checked
-        ? [...previous.filter((value) => value !== key), key]
-        : previous.filter((value) => value !== key);
-      updateFileSelection();
+      const previous = state.spec.files.formats.filter((value) => value !== key);
+      state.spec.files.formats = input.checked ? [...previous, key] : previous;
+      refreshFileFormats();
     });
     const option = el("label", { class: "format-option" });
     option.append(input, document.createTextNode(label));
-    parent[index < 3 ? 0 : 1].append(option);
+    if (index < 3) {
+      const only = el("button", { type: "button", class: "ghost", "data-only-format": key }, ["JSONだけ", "CSVだけ", "画像だけ"][index]);
+      only.addEventListener("click", () => {
+        state.spec.files.formats = [key];
+        if (key === "image") state.spec.files.write_sidecars = false;
+        for (const [value, checkbox] of inputs) checkbox.checked = value === key;
+        refreshFileFormats();
+      });
+      const card = el("div", { class: "format-card" });
+      card.append(option, only);
+      groups[0].append(card);
+    } else {
+      groups[1].append(option);
+    }
+  }
+  function refreshFileFormats() {
+    updateFileSelection();
+    const details = $("#fileFormatOptions");
+    if (details) renderSelectedFileOptions(details, state.schemas.run);
+  }
+}
+
+// 選んでいる形式に必要な設定だけを表示する。完了印はデータ形式の選択と別扱い。
+function renderSelectedFileOptions(body, root) {
+  body.replaceChildren();
+  const files = state.spec.files;
+  const schema = deref(root.properties.files, root);
+  const selected = files.formats;
+  const include = new Set([
+    "completion_mode", "records_per_file", "path_template", "filename_template", "write_manifest",
+  ]);
+  if (selected.some((key) => ["json", "csv", "xml"].includes(key))) include.add("compression");
+  for (const key of selected) {
+    for (const option of Object.keys(schema.properties)) {
+      if (option.startsWith(key + "_")) include.add(option);
+    }
+  }
+  if (selected.includes("image")) {
+    include.add("image");
+    include.add("write_sidecars");
+  }
+  for (const key of Object.keys(schema.properties)) {
+    if (!include.has(key)) continue;
+    const prop = key === "write_sidecars"
+      ? {...schema.properties[key], title: "画像の付帯JSONも保存（任意）"}
+      : schema.properties[key];
+    body.append(control(key, prop, files[key], (value) => {
+      files[key] = value;
+      updateFileSelection();
+    }, root));
   }
 }
 
@@ -423,7 +493,8 @@ function renderFileOperationRates(body, root, refreshFields) {
 // ファイル生成の基本操作を三段階に揃え、高度な項目は個別に展開できるようにする。
 function renderFileRun(target, root) {
   const props = root.properties;
-  const [formats, formatBody] = block("Step 1. 生成する形式", "必要な形式だけを選択できます。複数選択もできます。");
+  const [formats, formatBody] = block("Step 1. 投入するファイル形式", "JSON・CSV・画像を個別に選びます。「だけ」は他の形式をすべて外します。チェック欄で必要な組み合わせも選べます。");
+  formatBody.classList.add("format-choices");
   const [extra, extraBody] = block("その他の形式", "", false);
   renderFileFormats([formatBody, extraBody]);
   formats.append(extra);
@@ -440,7 +511,8 @@ function renderFileRun(target, root) {
     "parameters", "fields", "anomalies", "faults", "sql", "files", "stream",
   ]);
   const [fileOptions, fileBody] = block("形式ごとの詳細と完了通知", "選んだ形式に応じて、文字コードや画像サイズなどを変更できます。", false);
-  renderObject(fileBody, deref(props.files, root), state.spec.files, root, ["formats"]);
+  fileBody.id = "fileFormatOptions";
+  renderSelectedFileOptions(fileBody, root);
   settings.append(advanced, fileOptions);
   const [parameters, parametersBody] = block("共有パラメーター", "複数の項目から値を参照できます。", false);
   parametersBody.append(control("parameters", props.parameters, state.spec.parameters,
@@ -470,7 +542,9 @@ function fileRunSubmission() {
   const spec = runSpec();
   const destination = state.connections.find((item) => item.id === spec.connection_id);
   if (!destination) throw new Error("登録済みの出力先を選んでください。");
-  if (!window.confirm("「" + destination.name + "」へファイルを出力します。続行しますか？")) return null;
+  const formats = spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
+  const sidecars = spec.files.formats.includes("image") && spec.files.write_sidecars ? "（画像の付帯JSONあり）" : "";
+  if (!window.confirm("「" + destination.name + "」へ " + formats.join("・") + sidecars + " を投入します。続行しますか？")) return null;
   spec.connection_revision = destination.revision;
   return spec;
 }
@@ -486,81 +560,11 @@ async function showStartedFileRun(run) {
   notify("生成を開始しました。実行ID: " + run.id);
   await refreshHistory();
 }
-// 共通条件・生成列・出力方式・異常条件を、現在のサービスと設定に合わせて再描画する。
+// ファイル生成の設定だけを再描画する。
 function renderRun() {
-  const root = state.schemas.run,
-    target = $("#runEditor");
+  const target = $("#runEditor");
   target.replaceChildren();
-  if (state.info.kind === "files") {
-    renderFileRun(target, root);
-    return;
-  }
-  const [common, body] = block(
-    "01 / 実行条件",
-    "生成量と速度、再現性を決めます。接続は保存済みのプロファイルを選択します。",
-  );
-  renderObject(body, root, state.spec, root, [
-    "version",
-    "connection_revision",
-    "task",
-    "parameters",
-    "fields",
-    "anomalies",
-    "faults",
-    "sql",
-    "files",
-    "stream",
-  ]);
-  target.append(common);
-  const [param, pbody] = block(
-    "02 / 共有パラメーター",
-    "同じ値を複数の生成ルールから $名前 で参照できます。",
-  );
-  pbody.append(
-    control(
-      "parameters",
-      root.properties.parameters,
-      state.spec.parameters,
-      /* JSON入力で検証済みのパラメーター集合を実行設定に戻す。 */ (v) => (state.spec.parameters = v),
-      root,
-    ),
-  );
-  pbody.firstChild.style.gridColumn = "1 / -1";
-  target.append(param);
-  const [fields, fbody] = block(
-    "03 / 自由なデータ項目",
-    "上から順に生成。他の項目を参照する場合は、参照元を先に置きます。",
-  );
-  fbody.style.display = "block";
-  renderFields(fbody);
-  target.append(fields);
-  const key = { sql: "sql", files: "files", stream: "stream" }[state.info.kind];
-  const [output, obody] = block(
-    "04 / " + root.properties[key].title,
-    root.properties[key].description,
-  );
-  renderObject(obody, deref(root.properties[key], root), state.spec[key], root);
-  target.append(output);
-  const [ab, ag] = block(
-    "05 / データ異常の注入",
-    "正常データへ、期間・割合・条件を指定して異常を重ねます。",
-    false,
-  );
-  ag.style.display = "block";
-  renderAnomalies(ag);
-  target.append(ab);
-  const [fb, fg] = block(
-    "06 / 処理障害のシミュレーション",
-    "この実行だけに障害や遅延を注入します。意図的にfailedで終了する設定があります。",
-    false,
-  );
-  renderObject(
-    fg,
-    deref(root.properties.faults, root),
-    state.spec.faults,
-    root,
-  );
-  target.append(fb);
+  renderFileRun(target, state.schemas.run);
 }
 // 生成項目を順序どおりカード表示し、並べ替え・複製・追加を編集モデルに反映できるようにする。
 function renderFields(parent) {
@@ -637,7 +641,7 @@ function renderFields(parent) {
       el("summary", {}, "詳細条件 · 分布 / 書式 / 参照 / NULL / 条件分岐"),
     );
     const grid = el("div", { class: "grid" });
-    renderObject(grid, schema, field, root, ["name", "data_type", "generator"]);
+    renderObject(grid, schema, field, root, ["name", "data_type", "generator", "primary_key"]);
     detail.append(grid);
     card.append(detail);
     parent.append(card);
@@ -712,7 +716,14 @@ function runSpec() {
   validateForm("#runForm");
   if (state.info.kind === "files" && !state.spec.files.formats.length)
     throw new Error("生成する形式を1つ以上選んでください。");
-  return clone(state.spec);
+  const spec = clone(state.spec);
+  delete spec.sql;
+  delete spec.stream;
+  if (spec.files.completion_mode === "lakehouse-products-local" &&
+      (spec.files.formats.length !== 1 || spec.files.formats[0] !== "csv")) {
+    throw new Error("Lakehouse製品用の完了形式ではCSVだけを選んでください。");
+  }
+  return spec;
 }
 const fieldsByKind = {
   sqlserver: ["host", "port", "database", "username", "password", "ssl_mode"],
@@ -1160,12 +1171,17 @@ function showJson() {
   const v = runSpec();
   v.connection_revision = null;
   v.task = "generate";
-  $("#presetJson").value = JSON.stringify(v, null, 2);
+  $("#presetJson").value = JSON.stringify(fileSpecView(v), null, 2);
 }
 // 入力欄のJSONを解析し、プレビューAPIが検証した設定を返す。構文・検証失敗は呼出側へ伝える。
 async function parsePreset() {
   const parsed = JSON.parse($("#presetJson").value);
-  return (await api("/api/preview", parsed)).validated_spec;
+  delete parsed.sql;
+  delete parsed.stream;
+  const verified = (await api("/api/preview", parsed)).validated_spec;
+  delete verified.sql;
+  delete verified.stream;
+  return verified;
 }
 // 値を整形JSONとしてブラウザーからダウンロードし、不要になったオブジェクトURLを解放する。
 function download(value, name) {
@@ -1183,7 +1199,29 @@ function previewResult(data) {
   $("#previewPanel").hidden = false;
   $("#previewPanel .badge").hidden = data.writes !== false;
   $("#previewNote").textContent = data.note || "出力結果";
-  $("#previewJson").textContent = JSON.stringify(data, null, 2);
+  const output = data.file_output;
+  const formats = $("#previewFormats");
+  formats.replaceChildren();
+  if (output?.formats) {
+    for (const key of output.formats) {
+      const label = FILE_FORMATS.find(([id]) => id === key)?.[1] || key;
+      const item = el("section", { class: "format-preview" });
+      item.append(el("h5", {}, label));
+      if (key === "json") {
+        item.append(el("pre", {}, JSON.stringify(data.json_payloads?.[0], null, 2)));
+      } else if (key === "csv") {
+        item.append(el("pre", {}, output.csv_sample || "見本なし"));
+      } else if (key === "image") {
+        const image = output.image;
+        item.append(el("p", {}, image.format + " · " + image.width + " × " + image.height + " px · " + image.count.toLocaleString() + "枚（予定）"));
+        if (image.sidecars) item.append(el("p", { class: "muted" }, "画像ごとに付帯JSONも保存します。"));
+      }
+      formats.append(item);
+    }
+    if (output.completion_marker) formats.append(el("p", { class: "muted" }, "取り込み用の完了印はデータ形式とは別に作成します。"));
+  }
+  const detail = data.validated_spec ? {...data, validated_spec: fileSpecView(data.validated_spec)} : data;
+  $("#previewJson").textContent = JSON.stringify(detail, null, 2);
   const area = $("#previewTable");
   area.replaceChildren();
   if (data.records?.length) {
@@ -1239,10 +1277,7 @@ function jobCard(run) {
   for (const [key, label] of [
     ["processed", "処理済み"],
     ["events_per_second", "件 / 秒"],
-    ["inserted", "追加"],
-    ["updated", "更新"],
     ["files", "ファイル"],
-    ["delivered", "配送済み"],
   ])
     if (run.stats[key] !== undefined) {
       const item = el("span", { class: "muted" }, label);
@@ -1307,7 +1342,7 @@ function jobCard(run) {
   }
   const detail = el("details", { "data-run-id": run.id });
   detail.append(el("summary", {}, "実行設定と詳細"));
-  detail.append(el("pre", {}, JSON.stringify(run, null, 2)));
+  detail.append(el("pre", {}, JSON.stringify({...run, spec: fileSpecView(run.spec)}, null, 2)));
   c.append(detail);
   return c;
 }
@@ -1421,20 +1456,14 @@ async function init() {
     api("/api/info"),
     api("/api/schemas"),
   ]);
-  state.spec = clone(state.info.defaults);
+  state.spec = newFileSpec();
   $("#title").textContent = state.info.title;
   document.title = state.info.title;
   $("#health").textContent = "ONLINE · " + state.info.kind.toUpperCase();
   await Promise.all([refreshConnections(), refreshPresets()]);
   editConnection(state.connections[0]);
-  $("#sqlActions").hidden = state.info.kind !== "sql";
-  $("#outboxPanel").hidden = state.info.kind !== "stream";
-  $("#destinationAdvice").textContent =
-    state.info.kind === "files"
-      ? "構成例: ローカルの /landing に生成し、独立した取り込み処理でLakehouseへ転送します。クラウドへの直接投入を試す場合はS3互換プロファイルを追加します。ファイル名とSHA256を記録した完了マニフェストを取り込みの目印にできます。"
-      : state.info.kind === "stream"
-        ? "MQTTは設備通信、Kafkaはイベントログ、AMQPはキュー配送、NATSは軽量配信、WebSocketは常時接続、HTTPは受信API、キャプチャは外部送信なしの記録です。各方式の説明と配送確認の境界は選択欄のヘルプに表示します。"
-        : "SQL Server以外にOracle / PostgreSQL / MySQL / MariaDB / SQLiteを選べます。既存テーブルへの書き込みには列名・型・主キーを一致させてください。";
+  $("#outboxPanel").hidden = true;
+  $("#destinationAdvice").textContent = "構成例: ローカルの /landing に生成し、独立した取り込み処理でLakehouseへ転送します。クラウドへの直接投入を試す場合はS3互換プロファイルを追加します。ファイル名とSHA256を記録した完了印を取り込みの目印にできます。";
   document.querySelectorAll(".nav").forEach(/* 全ナビ要素を、それぞれのタブ選択と履歴更新へ接続する。 */ (n) =>
     n.addEventListener("click", /* ナビで選んだタブを開く。履歴を開く場合だけ最新状態を非同期取得する。 */ () => {
       tab(n.dataset.tab);
@@ -1454,7 +1483,7 @@ async function init() {
     }
   });
   action("#resetRun", /* 編集中の生成設定をサービス既定値の複製へ戻して再描画する。 */ () => {
-    state.spec = clone(state.info.defaults);
+    state.spec = newFileSpec();
     renderRun();
     notify("実行設定を初期値に戻しました。");
   });
@@ -1525,14 +1554,6 @@ async function init() {
   for (const event of ["input", "change", "click"]) {
     $("#runForm").addEventListener(event, invalidateFilePreview);
   }
-  for (const [id, path] of [
-    ["#inspectTable", "inspect"],
-    ["#showDdl", "ddl"],
-    ["#prepareTable", "prepare"],
-  ])
-    action(id, /* 各SQL操作に対応するAPIへ実行設定を渡す。検査・DDL表示・表準備は選ばれた操作に従う。 */ async () =>
-      previewResult(await api("/api/table/" + path, runSpec())),
-    );
   action("#newConnection", /* 現在時刻から仮IDを作り、許可種別の先頭で新規接続の編集画面を開く。保存前に通信はしない。 */ () =>
     editConnection({
       id: "connection-" + Date.now().toString(36),

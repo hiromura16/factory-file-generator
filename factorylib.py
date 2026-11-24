@@ -574,7 +574,7 @@ def create_app(kind, title, adapter):
         ):
             raise HTTPException(422, "不正ファイルの生成設定はファイルツール専用です")
         try:
-            validate_generation(spec)
+            validate_generation(spec, kind=kind)
         except (ValueError, TypeError, OverflowError) as exc:
             raise HTTPException(
                 422,
@@ -766,7 +766,8 @@ def create_app(kind, title, adapter):
             )
             anomaly_hits.append(hits)
         payloads = []
-        for i, row in enumerate(records):
+        json_selected = kind != "files" or "json" in spec.files.formats
+        for i, row in enumerate(records if json_selected else []):
             meta = {
                 "record_key": record_key(spec, spec.start_sequence + offsets[i]),
                 "sequence": spec.start_sequence + offsets[i],
@@ -786,7 +787,27 @@ def create_app(kind, title, adapter):
             except GenerationError as exc:
                 raise HTTPException(422, str(exc)) from None
             payloads.append(payload)
+        output = {}
+        if kind == "files":
+            from file_adapter import csv_bytes
+
+            files = spec.files
+            output = {"formats": files.formats, "completion_marker": files.write_manifest}
+            if "csv" in files.formats:
+                sample = csv_bytes(spec, records[:3]).decode(files.csv_encoding)
+                output["csv_sample"] = sample[:2048] + ("…" if len(sample) > 2048 else "")
+            if "image" in files.formats:
+                start = spec.start_sequence
+                every = files.image.every
+                output["image"] = {
+                    "format": files.image.format.upper(),
+                    "width": files.image.width,
+                    "height": files.image.height,
+                    "count": (start + spec.rows - 1) // every - (start - 1) // every,
+                    "sidecars": files.write_sidecars,
+                }
         return {
+            **({"file_output": output} if kind == "files" else {}),
             "sample_sequences": [spec.start_sequence + i for i in offsets],
             "anomaly_hits": anomaly_hits,
             "validated_spec": spec.model_dump(mode="json"),
@@ -794,7 +815,7 @@ def create_app(kind, title, adapter):
             "records": records,
             "json_payloads": payloads,
             "rows": spec.rows,
-            "effective_batch_limit": batch_limit(spec, spec.batch_size),
+            "effective_batch_limit": batch_limit(spec, spec.batch_size, kind=kind),
             "estimated_seconds": round(spec.rows / spec.target_rate, 2)
             if spec.target_rate
             else None,

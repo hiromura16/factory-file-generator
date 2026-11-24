@@ -10,8 +10,9 @@ function fixture() {
   const make = () => ({
     listeners: {},
     children: [],
-    setAttribute() {},
+    setAttribute(name, value) { this[name] = value; },
     append(...nodes) { this.children.push(...nodes); },
+    replaceChildren(...nodes) { this.children = nodes; },
     addEventListener(type, callback) { this.listeners[type] = callback; },
     querySelectorAll() { return []; },
   });
@@ -19,6 +20,7 @@ function fixture() {
   const document = {
     createElement: make, createTextNode: (value) => value, addEventListener() {},
     querySelector(id) {
+      if (id === "#fileFormatOptions") return null;
       if (!elements.has(id)) elements.set(id, make());
       return elements.get(id);
     },
@@ -49,7 +51,7 @@ test("主要形式だけ切り替えても追加形式を消さない", () => {
   run("renderFileFormats")(groups);
   assert.equal(groups[0].children.length, 3);
   assert.equal(groups[1].children.length, 5);
-  const input = groups[0].children[0].children[0];
+  const input = groups[0].children[0].children[0].children[0];
   input.checked = false;
   input.listeners.change();
   assert.equal(run("JSON.stringify(state.spec.files.formats)"), '["parquet"]');
@@ -83,4 +85,37 @@ test("更新・削除割合は生成ルールだけに反映し、独自列と�
   run("state.spec.fields.push({name:'FILE_EVENT_OPERATION',generator:'constant'})");
   assert.match(run("applyFileOperationRates(50, 0, root)"), /独自項目/);
   assert.equal(run("state.spec.fields[1].generator"), "constant");
+});
+
+test("新規画面と単独選択・組み合わせがプレビューと送信モデルに反映される", () => {
+  const { run, make } = fixture();
+  run(`state.info.defaults = {
+    files: {formats:["json","csv","image"], write_sidecars:true},
+    fields:[{name:"id",primary_key:true}], rows:3, connection_id:"remote",
+    sql:{table:"legacy"}, stream:{topic_template:"legacy"}
+  }; state.spec = newFileSpec();`);
+  assert.equal(run("JSON.stringify(state.spec.files.formats)"), "[]");
+  assert.equal(run("state.spec.files.write_sidecars"), false);
+  assert.throws(() => run("runSpec()"), /形式を1つ以上/);
+  const groups = [make(), make()];
+  run("renderFileFormats")(groups);
+  const cards = groups[0].children;
+  const checkbox = (index) => cards[index].children[0].children[0];
+  for (const [index, key] of ["json", "csv", "image"].entries()) {
+    if (key === "image") run("state.spec.files.write_sidecars = true");
+    cards[index].children[1].listeners.click();
+    assert.equal(run("JSON.stringify(runSpec().files.formats)"), JSON.stringify([key]));
+    assert.equal(checkbox(index).checked, true);
+    if (key === "image") assert.equal(run("state.spec.files.write_sidecars"), false);
+    assert.equal(checkbox((index + 1) % 3).checked, false);
+    run("window.confirm = () => true");
+    assert.equal(run("JSON.stringify(fileRunSubmission().files.formats)"), JSON.stringify([key]));
+  }
+  checkbox(1).checked = true;
+  checkbox(1).listeners.change();
+  assert.equal(run("JSON.stringify(runSpec().files.formats)"), '["image","csv"]');
+  assert.equal(run("'sql' in fileRunSubmission() || 'stream' in fileRunSubmission()"), false);
+  assert.equal(run("'primary_key' in fileSpecView(state.info.defaults).fields[0]"), false);
+  assert.equal(run("'sql' in fileSpecView(state.info.defaults)"), false);
+  assert.equal(run("state.info.defaults.fields[0].primary_key"), true);
 });

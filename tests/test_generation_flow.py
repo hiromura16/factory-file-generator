@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from fastapi.testclient import TestClient
 
 import file_adapter
@@ -134,6 +135,9 @@ def test_generation_stages_and_frontend_contract():
     with TestClient(app) as client:
         html = client.get("/").text
         assert 'id="quickstart"' in html
+        assert 'id="previewFormats"' in html
+        assert 'id="sqlActions"' not in html
+        assert "作成DDL" not in html
         assert html.index('id="runEditor"') < html.index("Step 4.") < html.index("Step 5.")
         preview = client.post(
             "/api/preview", json={"rows": 3, "files": {"formats": ["image"]}}
@@ -146,3 +150,59 @@ def test_generation_stages_and_frontend_contract():
         pytest.skip("画面ロジックの検査にはNode.jsが必要です")
     script = Path(__file__).with_name("generation_flow.test.cjs")
     subprocess.run([node, "--test", str(script)], check=True, timeout=30)
+
+@pytest.mark.parametrize(
+    ("formats", "expected"),
+    [
+        (["json"], {"json"}),
+        (["csv"], {"csv"}),
+        (["image"], {"images"}),
+        (["csv", "image"], {"csv", "images"}),
+        (["json", "csv", "image"], {"json", "csv", "images"}),
+    ],
+)
+def test_preview_and_local_run_use_only_selected_formats(tmp_path, formats, expected):
+    """プレビューと確定ファイルを比較し、未選択の形式が出ないことを検証する。"""
+    app = create_app("files", "試験", file_adapter)
+    with TestClient(app) as client:
+        spec = client.get("/api/info").json()["defaults"]
+        spec.update(rows=3, target_rate=0)
+        spec["files"].update(formats=formats, write_sidecars=False)
+        # 未選択の本文テンプレートは、関係のないCSV／画像を妨げない。
+        spec["stream"]["payload_template"] = "$row.missing_stream_field"
+        if "json" not in formats:
+            spec["files"]["json_template"] = "$row.missing_json_field"
+        preview = client.post("/api/preview", json=spec)
+        assert preview.status_code == 200, preview.text
+        view = preview.json()
+        assert view["writes"] is False
+        assert view["file_output"]["formats"] == formats
+        assert bool(view["json_payloads"]) == ("json" in formats)
+        assert ("csv_sample" in view["file_output"]) == ("csv" in formats)
+        assert ("image" in view["file_output"]) == ("image" in formats)
+        assert client.get("/api/runs").json()["runs"] == []
+        assert not list((tmp_path / "exports").glob("**/*"))
+
+        run = client.post("/api/runs", json=spec)
+        assert run.status_code == 202, run.text
+        run_id = run.json()["id"]
+        app.state.runtime.thread.join(timeout=10)
+        result = client.get(f"/api/runs/{run_id}").json()
+        assert result["status"] == "completed", result
+        folder = tmp_path / "exports" / spec["run_key"] / run_id
+        assert {child.name for child in folder.iterdir() if child.is_dir()} == expected | {"manifests"}
+        marker = json.loads(next((folder / "manifests").glob("*.ready.json")).read_text())
+        assert {artifact["path"].split("/")[0] for artifact in marker["artifacts"]} == expected
+        if "json" in formats:
+            assert json.loads(next((folder / "json").glob("*.json")).read_text()) == view["json_payloads"]
+        if "csv" in formats:
+            output = next((folder / "csv").glob("*.csv")).read_bytes().decode("utf-8-sig")
+            assert output == view["file_output"]["csv_sample"]
+        if "image" in formats:
+            images = list((folder / "images").glob("*.png"))
+            assert len(images) == view["file_output"]["image"]["count"] == 3
+            with Image.open(images[0]) as image:
+                assert image.size == (
+                    view["file_output"]["image"]["width"], view["file_output"]["image"]["height"],
+                )
+            assert not list((folder / "images").glob("*.json"))
