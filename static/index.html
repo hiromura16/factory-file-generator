@@ -10,9 +10,6 @@
   <body>
     <!-- 読解: ツール名と接続表示の領域。health表示はブラウザーが取得した状態で更新する。 --><header>
       <div>
-        <span class="eyebrow"
-          >FACTORY FILE GENERATOR <span class="version">v0.2</span></span
-        >
         <h1 id="title">ファイル生成</h1>
         <p id="subtitle">JSON・CSV・疑似画像ファイルを生成して、ランディングフォルダに出力します。Lakehouse、ETL、ファイル取込システムの検証に使えます。</p>
       </div>
@@ -22,17 +19,17 @@
       <!-- 読解: data-tabと画面IDの対応で切り替えるナビと説明欄。実処理の開始とは分離する。 --><aside>
         <nav aria-label="メインメニュー">
           <button class="nav active" data-tab="generate">
-            01 <span>ファイルをつくる</span></button
+            <span>ファイルをつくる</span></button
           ><button class="nav" data-tab="connections">
-            02 <span>出力先</span></button
+            <span>出力先</span></button
           ><button class="nav" data-tab="presets">
-            03 <span>プリセット / JSON</span></button
+            <span>プリセット / JSON</span></button
           ><button class="nav" data-tab="history">
-            04 <span>実行履歴</span>
+            <span>実行履歴</span>
           </button>
         </nav>
         <div class="aside-note">
-          <span class="eyebrow">CONTEXT HELP</span>
+          <strong>入力項目の説明</strong>
           <p>
             項目にマウスを重ねると、その場で説明を表示します。<b>?</b>
             にキーボードで移動しても読めます。
@@ -45,17 +42,15 @@
         <!-- 読解: プリセット読込み・動的生成条件・プレビュー・実行受付をまとめる。プレビューと投入を別ボタンにする。 --><section id="generate" class="tab active">
           <div class="section-head">
             <div>
-              <span class="eyebrow">GENERATOR</span>
               <h2>ファイルをつくる</h2>
             </div>
-            <span class="muted">業種を選ばず、項目から定義</span>
           </div>
           <div class="card quickstart">
             <div>
               <h3>まずはJSONを30件</h3>
-              <p>JSONだけをアプリ既定のローカルランディングへ出力します。下の設定には影響しません。</p>
+              <p>ボタンを押すと、アプリ既定のローカル出力フォルダにJSONを作成します。</p>
             </div>
-            <button id="quickstart" class="primary" type="button" disabled>
+            <button id="quickstart" class="secondary" type="button" disabled>
               JSONを30件生成
             </button>
           </div>
@@ -65,8 +60,8 @@
             <label
               class="compact hint"
               data-help="保存済みプリセットを読み込みます。画面の編集中の設定は置き換わります。"
-              >プリセット<select id="presetSelect"></select></label
-            ><button id="loadPreset">読み込む</button
+              >ひな型（プリセット）<select id="presetSelect"></select></label
+            ><button id="loadPreset">ひな型を読み込む</button
             ><button id="resetRun" class="ghost">初期値</button
             ><button id="toPreset" class="ghost">この設定を保存…</button>
           </div>
@@ -76,14 +71,14 @@
           <section class="card" aria-labelledby="previewStep">
             <h3 id="previewStep">Step 4. プレビュー</h3>
             <p id="selectionSummary" class="muted" aria-live="polite"></p>
-            <button id="preview" class="secondary" type="button">
+            <button id="preview" class="primary" type="button">
               サンプルを確認
             </button>
             <div id="previewPanel" hidden>
               <h4>入力データのサンプル <span class="badge">書き込みなし</span></h4>
               <p id="previewNote"></p>
               <div id="previewFormats"></div>
-              <div id="previewTable" class="table-scroll"></div>
+              <div id="previewTable" class="table-scroll" tabindex="0" role="region" aria-label="生成データの見本"></div>
               <details>
                 <summary>生成条件とサンプルの詳細</summary>
                 <pre id="previewJson"></pre>
