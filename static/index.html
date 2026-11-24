@@ -68,7 +68,7 @@
           <p id="presetDetails" class="note" aria-live="polite"></p>
           </details>
           <!-- 読解: スキーマからJavaScriptが生成欄を構築する空の受け皿。既定のブラウザー送信ではなく操作関数で検証する。 --><form id="runForm" novalidate><div id="runEditor"></div></form>
-          <section class="card" aria-labelledby="previewStep">
+          <section class="card preview-step" aria-labelledby="previewStep">
             <h3 id="previewStep">Step 4. プレビュー</h3>
             <p id="selectionSummary" class="muted" aria-live="polite"></p>
             <button id="preview" class="primary" type="button">
@@ -85,10 +85,10 @@
               </details>
             </div>
           </section>
-          <section class="card" aria-labelledby="runStep">
+          <section class="card run-step" aria-labelledby="runStep">
             <h3 id="runStep">Step 5. 実行</h3>
             <p class="muted">選択した形式でファイルを生成します。実行は一度に1件です。</p>
-            <button id="start" class="primary" type="button">選んだ形式を投入</button>
+            <button id="start" type="button">ファイルを出力する</button>
           </section>
           <!-- 読解: 非同期ジョブの保存済み状態を表示する。受付と完了を区別するため独立した領域にする。 --><div id="currentJob" class="card" hidden></div>
         </section>

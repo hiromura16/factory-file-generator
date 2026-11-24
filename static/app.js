@@ -535,7 +535,9 @@ function renderFileRun(target, root) {
     state.spec.connection_revision = null;
     updateFileSelection();
   }, root));
-  target.append(formats, settings, destination, details);
+  const basics = el("div", { class: "file-basics" });
+  basics.append(settings, destination);
+  target.append(formats, basics, details);
   updateFileSelection();
 }
 
@@ -1173,10 +1175,13 @@ async function refreshPresets() {
 }
 // 検証済みフォームをJSONへ変換する。履歴の接続リビジョンと再送指定はプリセットへ持ち込まない。
 function showJson() {
-  const v = runSpec();
-  v.connection_revision = null;
-  v.task = "generate";
-  $("#presetJson").value = JSON.stringify(fileSpecView(v), null, 2);
+  validateForm("#runForm");
+  const view = fileSpecView(state.spec);
+  $("#presetJson").value = JSON.stringify({
+    ...view,
+    connection_revision: null,
+    task: "generate",
+  }, null, 2);
 }
 // 入力欄のJSONを解析し、プレビューAPIが検証した設定を返す。構文・検証失敗は呼出側へ伝える。
 async function parsePreset() {

@@ -59,6 +59,17 @@ test("主要形式だけ切り替えても追加形式を消さない", () => {
   assert.throws(() => run("runSpec()"), /形式を1つ以上/);
 });
 
+test("形式が未選択でもJSON編集欄を開ける。実行時は選択が必要", () => {
+  const { run, requests } = fixture();
+  run('state.spec.files.formats = []; state.spec.connection_revision = 2; showJson();');
+  const draft = JSON.parse(run('$("#presetJson").value'));
+  assert.deepEqual(draft.files.formats, []);
+  assert.equal(draft.connection_revision, null);
+  assert.equal(run("state.spec.connection_revision"), 2);
+  assert.deepEqual(requests, []);
+  assert.throws(() => run("runSpec()"), /形式を1つ以上/);
+});
+
 test("通常出力は明示承認が必要、クイックスタートは編集モデルを渡さない", async () => {
   const { run, requests } = fixture();
   assert.equal(run("fileRunSubmission()"), null);
