@@ -355,6 +355,37 @@ def validate_path(value, empty=False):
     return value
 
 
+def csv_bytes(spec, records):
+    """データ行を設定どおりのCSVバイト列へ変換する。プレビューと書き込みで同じ整形を使う。"""
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=[f.name for f in spec.fields],
+        delimiter=spec.files.csv_delimiter,
+        quotechar=spec.files.csv_quotechar,
+        quoting={
+            "minimal": csv.QUOTE_MINIMAL,
+            "all": csv.QUOTE_ALL,
+            "nonnumeric": csv.QUOTE_NONNUMERIC,
+        }[spec.files.csv_quoting],
+        lineterminator="\r\n" if spec.files.csv_newline == "CRLF" else "\n",
+    )
+    if spec.files.csv_header:
+        writer.writeheader()
+    writer.writerows(
+        {
+            k: encode_json(v)
+            if isinstance(v, (dict, list))
+            else spec.files.csv_null_value
+            if v is None
+            else v
+            for k, v in row.items()
+        }
+        for row in records
+    )
+    return buffer.getvalue().encode(spec.files.csv_encoding)
+
+
 # 読解 handle: 設定のcompletion_modeを判定し、製品CSV専用の明示モードは専用処理へ直ちに委譲する。
 # 既定経路はバッチごとの成果物と任意v2マニフェストを生成する。部分成功の巻戻しはしない。
 def handle(spec, ctx, profile, store, *, local_root_fd=None):
@@ -366,7 +397,7 @@ def handle(spec, ctx, profile, store, *, local_root_fd=None):
         profile, spec, ctx.run_id, local_root_fd=local_root_fd
     )
     total_bytes = 0
-    group_size = batch_limit(spec, spec.files.records_per_file)
+    group_size = batch_limit(spec, spec.files.records_per_file, kind="files")
     try:
         for offset in range(0, spec.rows, group_size):
             ctx.check()
@@ -487,35 +518,9 @@ def handle(spec, ctx, profile, store, *, local_root_fd=None):
                         True,
                     )
             if "csv" in spec.files.formats:
-                buffer = io.StringIO(newline="")
-                writer = csv.DictWriter(
-                    buffer,
-                    fieldnames=[f.name for f in spec.fields],
-                    delimiter=spec.files.csv_delimiter,
-                    quotechar=spec.files.csv_quotechar,
-                    quoting={
-                        "minimal": csv.QUOTE_MINIMAL,
-                        "all": csv.QUOTE_ALL,
-                        "nonnumeric": csv.QUOTE_NONNUMERIC,
-                    }[spec.files.csv_quoting],
-                    lineterminator="\r\n" if spec.files.csv_newline == "CRLF" else "\n",
-                )
-                if spec.files.csv_header:
-                    writer.writeheader()
-                writer.writerows(
-                    {
-                        k: encode_json(v)
-                        if isinstance(v, (dict, list))
-                        else spec.files.csv_null_value
-                        if v is None
-                        else v
-                        for k, v in row.items()
-                    }
-                    for row in records
-                )
                 write(
                     "csv/" + filename + ".csv",
-                    buffer.getvalue().encode(spec.files.csv_encoding),
+                    csv_bytes(spec, records),
                     "text/csv",
                     True,
                 )

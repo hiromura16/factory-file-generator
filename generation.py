@@ -378,14 +378,21 @@ def sample_offsets(spec):
     return sorted(offsets)
 
 
-def validate_generation(spec):
+def payload_templates(spec, kind):
+    """現在の生成方式が使うテンプレートだけを検証・サイズ見積もりに渡す。"""
+    if kind == "files":
+        return [spec.files.json_template] if "json" in spec.files.formats else []
+    return [spec.files.json_template, spec.stream.payload_template]
+
+
+def validate_generation(spec, *, kind=None):
     # Check the beginning, a later point and the end without materializing the run.
     """代表位置の生成とJSON展開を事前確認する。全行の成功保証ではない。"""
     for offset in sample_offsets(spec):
         sequence = spec.start_sequence + offset
         row = generate_record(spec, sequence)
         encode_json(row)
-        for template in [spec.files.json_template, spec.stream.payload_template]:
+        for template in payload_templates(spec, kind):
             if template is not None:
                 encode_json(
                     map_json(
@@ -402,7 +409,7 @@ def validate_generation(spec):
     return spec
 
 
-def batch_limit(spec, requested):
+def batch_limit(spec, requested, *, kind=None):
     """代表行のサイズからバッチ上限を見積もり、要求数とバースト幅で抑える。
 
     全行を実体化しない近似値であり、最大行サイズの厳密な証明ではない。
@@ -411,7 +418,7 @@ def batch_limit(spec, requested):
     for offset in sample_offsets(spec):
         row = generate_record(spec, spec.start_sequence + offset)
         size = max(size, len(encode_json(row).encode()))
-        for template in [spec.files.json_template, spec.stream.payload_template]:
+        for template in payload_templates(spec, kind):
             if template is not None:
                 size = max(
                     size,

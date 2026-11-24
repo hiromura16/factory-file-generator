@@ -553,3 +553,17 @@ th {
 .format-option input { width: auto; }
 #runEditor details details { margin-top: .75rem; }
 #previewPanel { margin-top: 1rem; }
+
+
+/* 形式ごとのチェックと単独選択を隣り合わせに置く。 */
+.format-choices { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.format-card {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+}
+.format-preview { margin-top: .75rem; }
+.format-preview h5 { margin-bottom: .25rem; }
