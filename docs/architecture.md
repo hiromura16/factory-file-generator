@@ -4,14 +4,14 @@
 
 | 種類 | リポジトリ | 画面ポート（例の変数名） | 収集方法 |
 | --- | --- | --- | --- |
-| SQL | factory-mes-erp-simulator | `<SQL_UI_PORT>` | DBをCDC/クエリで取得 |
-| ファイル | factory-file-generator | `<FILE_UI_PORT>` | landingのready.jsonを起点に取得 |
-| ストリーム | factory-stream-simulator | `<STREAM_UI_PORT>` | MQTT/Kafka/HTTP等 |
-| 設備 | factory-equipment-simulator | `<EQUIPMENT_UI_PORT>` | OPC UA `<OPC_UA_PORT>` / Modbus TCP `<MODBUS_TCP_PORT>` |
-| 業務API | factory-api-simulator | `<API_UI_PORT>` | REST / ODataサブセット |
-| ヒストリアン | factory-historian-simulator | `<HISTORIAN_UI_PORT>` | 履歴REST / 期間指定 / 集計 |
-| ログ | factory-log-simulator | `<LOG_UI_PORT>` | 回転ファイル / Syslog UDP・TCP・TLS |
-| 識別 | factory-identification-simulator | `<IDENTIFICATION_UI_PORT>` | RFID・作業者イベント / MQTT・HTTP |
+| SQL | [factory-mes-erp-simulator](https://github.com/hiromura16/factory-mes-erp-simulator) | `<SQL_UI_PORT>` | DBをCDC/クエリで取得 |
+| ファイル | [factory-file-generator](https://github.com/hiromura16/factory-file-generator) | `<FILE_UI_PORT>` | landingのready.jsonを起点に取得 |
+| ストリーム | [factory-stream-simulator](https://github.com/hiromura16/factory-stream-simulator) | `<STREAM_UI_PORT>` | MQTT/Kafka/HTTP等 |
+| 設備 | [factory-equipment-simulator](https://github.com/hiromura16/factory-equipment-simulator) | `<EQUIPMENT_UI_PORT>` | OPC UA `<OPC_UA_PORT>` / Modbus TCP `<MODBUS_TCP_PORT>` |
+| 業務API | [factory-api-simulator](https://github.com/hiromura16/factory-api-simulator) | `<API_UI_PORT>` | REST / ODataサブセット |
+| ヒストリアン | [factory-historian-simulator](https://github.com/hiromura16/factory-historian-simulator) | `<HISTORIAN_UI_PORT>` | 履歴REST / 期間指定 / 集計 |
+| ログ | [factory-log-simulator](https://github.com/hiromura16/factory-log-simulator) | `<LOG_UI_PORT>` | 回転ファイル / Syslog UDP・TCP・TLS |
+| 識別 | [factory-identification-simulator](https://github.com/hiromura16/factory-identification-simulator) | `<IDENTIFICATION_UI_PORT>` | RFID・作業者イベント / MQTT・HTTP |
 
 各アプリは独立したGitリポジトリ・設定・永続データで稼働します。構成例ではホスト名を `<GENERATOR_HOST>`、LAN接続先を `<LAN_BIND_ADDRESS>`、プライベートなオーバーレイネットワークの接続先を `<OVERLAY_BIND_ADDRESS>` と表します。実際に公開するインターフェースとポートは利用環境に合わせて限定してください。これらの例示名はComposeの環境変数名を定義するものではありません。ネットワークの共有が必要な場合は、配備先の構成として別途設計します。公開Compose単体は通常の独立ネットワークで起動します。資格情報はホストの非公開設定へ保存します。
 
