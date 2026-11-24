@@ -498,42 +498,46 @@ function renderFileRun(target, root) {
   const [extra, extraBody] = block("その他の形式", "", false);
   renderFileFormats([formatBody, extraBody]);
   formats.append(extra);
-  const [settings, body] = block("Step 2. 件数とバリエーション", "シード値を揃えるとデータを再現できます。更新率・削除率は出力行の操作ラベルの割合で、既存データは変更しません。");
-  for (const key of ["rows", "seed"]) {
-    body.append(control(key, props[key], state.spec[key], (value) => {
-      state.spec[key] = value;
-      updateFileSelection();
-    }, root));
-  }
-  const [advanced, advancedBody] = block("その他の生成条件", "生成速度、分割、命名などを調整します。", false);
+  const [settings, body] = block("Step 2. 生成する件数", "はじめは少ない件数で出力の見本を確認できます。");
+  body.append(control("rows", props.rows, state.spec.rows, (value) => {
+    state.spec.rows = value;
+    updateFileSelection();
+  }, root));
+  const [details, detailsBody] = block("詳細設定", "生成ルール、ファイル形式の詳細、異常データ、処理障害を設定します。", false);
+  details.id = "fileAdvanced";
+  detailsBody.classList.add("advanced-stack");
+  const [advanced, advancedBody] = block("生成速度と再現性", "シード値を揃えると同じデータを再現できます。", false);
   renderObject(advancedBody, root, state.spec, root, [
-    "version", "rows", "seed", "connection_id", "connection_revision", "task",
+    "version", "rows", "connection_id", "connection_revision", "task",
     "parameters", "fields", "anomalies", "faults", "sql", "files", "stream",
   ]);
   const [fileOptions, fileBody] = block("形式ごとの詳細と完了通知", "選んだ形式に応じて、文字コードや画像サイズなどを変更できます。", false);
   fileBody.id = "fileFormatOptions";
   renderSelectedFileOptions(fileBody, root);
-  settings.append(advanced, fileOptions);
+  detailsBody.append(advanced, fileOptions);
   const [parameters, parametersBody] = block("共有パラメーター", "複数の項目から値を参照できます。", false);
   parametersBody.append(control("parameters", props.parameters, state.spec.parameters,
     (value) => (state.spec.parameters = value), root));
   const [fields, fieldsBody] = block("生成する項目", "上から順に値を作ります。", false);
   fieldsBody.style.display = "block";
   renderFields(fieldsBody);
-  renderFileOperationRates(body, root, () => renderFields(fieldsBody));
+  const [operations, operationBody] = block("更新・削除イベントの割合", "出力データに付ける操作ラベルを設定します。", false);
+  renderFileOperationRates(operationBody, root, () => renderFields(fieldsBody));
   const [anomalies, anomaliesBody] = block("異常値の設定", "期間・割合・条件を指定して、異常値を含むデータを生成します。", false);
   anomaliesBody.style.display = "block";
   renderAnomalies(anomaliesBody);
   const [faults, faultsBody] = block("出力障害のシミュレーション", "処理の遅延・停止や不正ファイルを再現します。", false);
   renderObject(faultsBody, deref(props.faults, root), state.spec.faults, root);
-  settings.append(parameters, fields, anomalies, faults);
+  detailsBody.append(parameters, fields, operations, anomalies, faults);
   const [destination, destinationBody] = block("Step 3. 出力先", "ローカルランディング、共有フォルダ（NFS・SMB）、その他の登録済み出力先を選びます。");
   destinationBody.append(control("connection_id", { ...props.connection_id, title: "出力先" }, state.spec.connection_id, (value) => {
     state.spec.connection_id = value;
     state.spec.connection_revision = null;
     updateFileSelection();
   }, root));
-  target.append(formats, settings, destination);
+  const basics = el("div", { class: "file-basics" });
+  basics.append(settings, destination);
+  target.append(formats, basics, details);
   updateFileSelection();
 }
 
@@ -705,7 +709,10 @@ function validateForm(selector) {
   const form = $(selector);
   for (const input of form.querySelectorAll("input,textarea,select")) {
     if (!input.checkValidity()) {
-      input.closest("details")?.setAttribute("open", "");
+      for (let details = input.closest("details"); details;
+        details = details.parentElement.closest("details")) {
+        details.open = true;
+      }
       input.reportValidity();
       throw new Error("入力内容を確認してください。");
     }
@@ -1168,10 +1175,13 @@ async function refreshPresets() {
 }
 // 検証済みフォームをJSONへ変換する。履歴の接続リビジョンと再送指定はプリセットへ持ち込まない。
 function showJson() {
-  const v = runSpec();
-  v.connection_revision = null;
-  v.task = "generate";
-  $("#presetJson").value = JSON.stringify(fileSpecView(v), null, 2);
+  validateForm("#runForm");
+  const view = fileSpecView(state.spec);
+  $("#presetJson").value = JSON.stringify({
+    ...view,
+    connection_revision: null,
+    task: "generate",
+  }, null, 2);
 }
 // 入力欄のJSONを解析し、プレビューAPIが検証した設定を返す。構文・検証失敗は呼出側へ伝える。
 async function parsePreset() {
