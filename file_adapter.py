@@ -31,21 +31,94 @@ from generation import (
 )
 
 
-# 読解 allowed_directory: 正規化した出力先が許可ルート内かを確認し、必要なディレクトリを作る。
-def allowed_directory(value):
+def file_allowed_roots():
+    """設定された出力許可ルートを、書き込みを伴わず取得する。"""
     data = Path(os.environ.get("DATA_DIR", "./data")).resolve()
-    roots = [
-        Path(p).resolve()
+    return [
+        Path(p)
         for p in os.environ.get(
             "FILE_ALLOWED_ROOTS", os.environ.get("LANDING_DIR", str(data / "exports"))
         ).split(os.pathsep)
         if p
     ]
+
+
+# 読解 allowed_directory: 正規化した出力先が許可ルート内かを確認し、必要なディレクトリを作る。
+def allowed_directory(value):
+    roots = [root.resolve() for root in file_allowed_roots()]
     path = Path(value).expanduser().resolve()
     if not any(path.is_relative_to(root) for root in roots):
         raise GenerationError("出力先は許可されたランディング領域内に指定してください")
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def open_directory_at(parent_fd, parts):
+    """親ディレクトリから、シンボリックリンクを辿らず子ディレクトリを開く。"""
+    fd = os.dup(parent_fd)
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        for part in parts:
+            if part in {"", ".", ".."} or "/" in part:
+                raise GenerationError("ディレクトリ階層の指定が不正です")
+            try:
+                child_fd = os.open(part, flags, dir_fd=fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(part, mode=0o750, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(part, flags, dir_fd=fd)
+            os.close(fd)
+            fd = child_fd
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def open_quickstart_landing(path):
+    """明示的に許可された絶対パスだけを、変更されないディレクトリ参照として開く。"""
+    roots = [
+        Path(os.path.abspath(root.expanduser())) for root in file_allowed_roots()
+    ]
+    if not path.is_absolute() or not any(path.is_relative_to(root) for root in roots):
+        raise GenerationError("既定のランディングが出力許可ルート外です")
+    root_fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        return open_directory_at(root_fd, path.parts[1:])
+    except OSError as exc:
+        raise GenerationError("既定のランディングを安全に開けません") from exc
+    finally:
+        os.close(root_fd)
+
+
+def atomic_write_at(root_fd, relative, data):
+    """固定したルートから辿り、一時ファイルを同期して上書きなしで確定する。"""
+    directory_fd = open_directory_at(root_fd, relative.parts[:-1])
+    name = relative.name
+    temporary = name + ".part"
+    try:
+        fd = os.open(
+            temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o640, dir_fd=directory_fd
+        )
+        try:
+            with os.fdopen(fd, "wb") as output:
+                output.write(data)
+                output.flush()
+                os.fsync(output.fileno())
+            os.link(
+                temporary,
+                name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        finally:
+            os.unlink(temporary, dir_fd=directory_fd)
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
 
 
 # 読解 atomic_write: 一時ファイルを同期してから最終名へ置換し、ディレクトリも同期する。
@@ -138,8 +211,11 @@ def test_connection(profile):
 class Destination:
     # 読解 Destination.__init__: 接続と生成条件から実行用prefixを展開・検査し、必要な出力先を準備する。
     # NFSマウント確認やリモートクライアント生成を伴い得る。終了時はcloseで解放する。
-    def __init__(self, profile, spec, job_id):
+    def __init__(self, profile, spec, job_id, *, local_root_fd=None):
         self.profile = profile
+        self.local_root_fd = local_root_fd
+        if local_root_fd is not None and profile.kind != "local":
+            raise GenerationError("固定されたルートはローカル出力専用です")
         self.prefix = render(
             spec.files.path_template,
             {**spec.parameters, "run_key": spec.run_key, "job_id": job_id},
@@ -148,7 +224,7 @@ class Destination:
         validate_path(profile.prefix, empty=True)
         self.root = (
             allowed_directory(profile.directory)
-            if profile.kind in {"local", "nfs"}
+            if local_root_fd is None and profile.kind in {"local", "nfs"}
             else None
         )
         if profile.kind == "nfs":
@@ -157,7 +233,7 @@ class Destination:
             Remote(profile) if profile.kind in {"smb", "ftp", "sftp"} else None
         )
         self.client = s3_client(profile) if profile.kind == "s3" else None
-        if not self.root and not self.client and not self.remote:
+        if local_root_fd is None and not self.root and not self.client and not self.remote:
             raise GenerationError("ファイル出力先を指定してください")
 
     # 読解 Destination.key: 絶対パスと親参照を拒否し、設定済み接頭辞を含むS3キーを作る。
@@ -171,7 +247,14 @@ class Destination:
 
     # 読解 Destination.write: 出力先別の容量・パス・上書き条件に従って一成果物を書き込む。
     def write(self, relative, data, content_type):
-        if self.root:
+        if self.local_root_fd is not None:
+            capacity = os.fstatvfs(self.local_root_fd)
+            if capacity.f_bavail * capacity.f_frsize < 2 * 1024**3:
+                raise RuntimeError("disk_space_low")
+            path = PurePosixPath(self.prefix) / relative
+            validate_path(path.as_posix())
+            atomic_write_at(self.local_root_fd, path, data)
+        elif self.root:
             if shutil.disk_usage(self.root).free < 2 * 1024**3:
                 raise RuntimeError("disk_space_low")
             path = (self.root / self.prefix / relative).resolve()
@@ -274,12 +357,14 @@ def validate_path(value, empty=False):
 
 # 読解 handle: 設定のcompletion_modeを判定し、製品CSV専用の明示モードは専用処理へ直ちに委譲する。
 # 既定経路はバッチごとの成果物と任意v2マニフェストを生成する。部分成功の巻戻しはしない。
-def handle(spec, ctx, profile, store):
+def handle(spec, ctx, profile, store, *, local_root_fd=None):
     if spec.files.completion_mode == "lakehouse-products-local":
         from lakehouse_export import handle_products
 
         return handle_products(spec, ctx, profile)
-    destination = Destination(profile, spec, ctx.run_id)
+    destination = Destination(
+        profile, spec, ctx.run_id, local_root_fd=local_root_fd
+    )
     total_bytes = 0
     group_size = batch_limit(spec, spec.files.records_per_file)
     try:

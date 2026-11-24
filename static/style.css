@@ -534,3 +534,22 @@ th {
   background: var(--panel);
   border-radius: 6px;
 }
+
+/* 初回の出力と複数形式の選択を、狭い画面でも見失わない。 */
+.quickstart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.quickstart p { margin-bottom: 0; }
+.format-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .5rem;
+}
+.format-option input { width: auto; }
+#runEditor details details { margin-top: .75rem; }
+#previewPanel { margin-top: 1rem; }
