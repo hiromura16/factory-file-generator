@@ -705,22 +705,24 @@ function renderAnomalies(parent) {
   parent.append(add);
 }
 // ブラウザーの入力制約を検査し、不正欄の折りたたみを開いて理由を表示し処理を中断する。
-function validateForm(selector) {
+function validateForm(selector, showError = true) {
   const form = $(selector);
   for (const input of form.querySelectorAll("input,textarea,select")) {
     if (!input.checkValidity()) {
-      for (let details = input.closest("details"); details;
-        details = details.parentElement.closest("details")) {
-        details.open = true;
+      if (showError) {
+        for (let details = input.closest("details"); details;
+          details = details.parentElement.closest("details")) {
+          details.open = true;
+        }
+        input.reportValidity();
       }
-      input.reportValidity();
       throw new Error("入力内容を確認してください。");
     }
   }
 }
 // フォームを検証した後に現在の実行設定を複製して返す。送信側の加工は編集中モデルから分離する。
-function runSpec() {
-  validateForm("#runForm");
+function runSpec(showError = true) {
+  validateForm("#runForm", showError);
   if (state.info.kind === "files" && !state.spec.files.formats.length)
     throw new Error("生成する形式を1つ以上選んでください。");
   const spec = clone(state.spec);
@@ -1474,6 +1476,22 @@ async function init() {
   $("#health").textContent = "ONLINE · " + state.info.kind.toUpperCase();
   await Promise.all([refreshConnections(), refreshPresets()]);
   editConnection(state.connections[0]);
+  window.FactoryComparison.mount({
+    app: "file-generator",
+    listPresets: () => state.presets,
+    currentSpec: () => runSpec(false),
+    preview: (candidate) => api("/api/preview", candidate),
+    metrics: (spec) => ({
+      "生成する件数": spec.rows,
+      "選んだファイル形式の数": spec.files.formats.length,
+      "JSONを生成": spec.files.formats.includes('json') ? 'はい' : 'いいえ',
+      "CSVを生成": spec.files.formats.includes('csv') ? 'はい' : 'いいえ',
+      "疑似画像を生成": spec.files.formats.includes('image') ? 'はい' : 'いいえ',
+      "ファイルあたりの件数": spec.files.records_per_file,
+      "CSVヘッダー": spec.files.formats.includes('csv') ? (spec.files.csv_header ? 'あり' : 'なし') : null,
+      "完了マニフェスト": spec.files.write_manifest ? 'あり' : 'なし',
+    }),
+  });
   $("#outboxPanel").hidden = true;
   $("#destinationAdvice").textContent = "構成例: ローカルの /landing に生成し、独立した取り込み処理でLakehouseへ転送します。クラウドへの直接投入を試す場合はS3互換プロファイルを追加します。ファイル名とSHA256を記録した完了印を取り込みの目印にできます。";
   document.querySelectorAll(".nav").forEach(/* 全ナビ要素を、それぞれのタブ選択と履歴更新へ接続する。 */ (n) =>
