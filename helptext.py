@@ -1,10 +1,10 @@
-# モジュール読解: 設定画面用の日本語説明と接続方式の説明をJSON Schemaへ付ける。
-# HELPのキーはモデル項目と対応させる。説明追加時もenum・default・型制約は変えない。
-"""Japanese in-place documentation, shared by the form and JSON contracts."""
+"""入力スキーマに、画面と設定リファレンスで使う項目名と説明を追加する。"""
 
 from config import ConnectionProfile, RunSpec
 
 HELP = {
+    'duplicate_rate': ('重複率 (0〜1)', '同じ本文・トピックで1回追加送信する確率。1なら送信数は元の2倍です。'),
+    'message_size_bytes': ('本文サイズの下限 (B)', 'MQTT・ローカル記録用。JSONの末尾を空白で補います。0は無調整、上限64 KiB。元の本文は切り詰めません。'),
     "description": (
         "用途・メモ",
         "このプリセットの用途、変更した設定、実行前の条件を記録できます。選択欄にも表示します。接続先のパスワード等は記載せず、接続プロファイルへ保存してください。",
@@ -849,9 +849,8 @@ HELP["formats"] = (
 )
 
 
-# 読解 annotated_schemas: RunSpecと接続モデルから新しいJSON Schemaを作り、日本語の表示説明を注釈して返す。
-# kind指定時は接続方式を絞る。元のPydanticモデルや保存済み契約ファイルは変更しない。
 def annotated_schemas(kind=None):
+    """入力スキーマに日本語の説明を加え、接続種別を現在のアプリに絞る。"""
     from config import ALLOWED_KINDS
 
     result = {
@@ -859,10 +858,10 @@ def annotated_schemas(kind=None):
         "connection": ConnectionProfile.model_json_schema(),
     }
 
-    # 読解 annotated_schemas.annotate: propertiesをHELPと対応させ、その場でtitle/descriptionを設定して$defsも再帰処理する。
-    # HELPにキーがない場合はKeyErrorで不整合を露出させ、黙って説明を欠落させない。
     def annotate(schema):
         for name, prop in schema.get("properties", {}).items():
+            if prop.get("x-editor-only"):
+                continue
             title, description = HELP[name]
             prop.update(title=title, description=description)
         for child in schema.get("$defs", {}).values():
@@ -881,7 +880,7 @@ def annotated_schemas(kind=None):
     )
     definitions["AnomalyRule"]["properties"]["operation"].update(
         title="異常の作り方",
-        description="set=値を置換、add=加算、multiply=倍率、ramp=開始位置から増加するドリフト、freeze=開始位置の値に固着、null=NULL、copy_from=指定位置の値をコピー、timestamp_shift=秒単位の時刻ずらし、omit=項目自体を欠落。",
+        description="set=値を置換、add=加算、multiply=倍率、ramp=開始位置から増加するドリフト、freeze=開始位置の値に固着、null=NULL、copy_from=指定位置の値をコピー、timestamp_shift=秒単位の時刻ずらし、omit=項目自体を欠落。加算・倍率・ドリフトは元の値が欠測・非数値の行では適用しません。",
     )
     definitions["AnomalyRule"]["properties"]["value"].update(
         title="置換値 / 増分 / 倍率 / 秒数 JSON",
@@ -895,6 +894,13 @@ def annotated_schemas(kind=None):
         title="異常が発生する確率",
         description="適用位置・条件を満たした行に対する0〜1の確率。同じrun_keyとseedなら再現可能です。",
     )
+    comparison = (
+        "eq/neは一致・不一致、gt/ge/lt/leは大小比較、inは配列に含まれるかを判定します。"
+        "大小比較では欠測値や比較できない型は不一致になります。"
+        "inの比較値はJSON配列、または配列を参照する共有パラメーターを指定します。"
+    )
+    for key in ("Condition", "Predicate"):
+        definitions[key]["properties"]["operator"]["description"] = comparison
     if kind:
         result["connection"]["properties"]["kind"]["enum"] = sorted(ALLOWED_KINDS[kind])
         result["connection"]["properties"]["kind"]["description"] = "\n\n".join(

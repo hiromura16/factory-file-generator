@@ -1,9 +1,8 @@
-# 読解: パッケージ名・Python範囲と実行依存を宣言する。解決済みの固定版はlockとrequirementsを参照する。
 [project]
 name = 'factory-file-generator'
-version = "0.2.0"
+version = "0.3.0"
 description = "Independent manufacturing factory data producer"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.15"
 dependencies = [
     "boto3>=1.40,<2",
     "cryptography>=46,<50",
@@ -18,17 +17,14 @@ dependencies = [
     'uvicorn==0.38.0',
 ]
 
-# 読解: 追加認証など、選択時に必要となる依存群。通常依存との差を明示する。
 [project.optional-dependencies]
 kerberos = [
     "pyspnego[kerberos]>=0.12,<0.13",
 ]
 
-# 読解: 開発・テスト用の依存。アプリ実行依存と分けて管理する。
 [dependency-groups]
 dev = ["httpx==0.28.1", "pytest==8.4.2"]
 
-# 読解: テストの探索範囲とimportルート。実接続試験の有効化とは別である。
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

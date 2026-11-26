@@ -1,4 +1,3 @@
-# モジュール読解: 文書形式の利用例に使う配布プリセットを組み立てる。
 """Add business document presets without replacing the existing normal/fault library."""
 
 import sys
@@ -8,8 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import RunSpec, FieldRule
 
 
-# 読解 build: 文書出力の代表シナリオを設定モデルで組み立て、所定の配布ファイルへ書き出す。
 def build():
+    """既存シナリオを残し、文書形式の例を配布プリセットに追加する。"""
     root = Path(__file__).resolve().parent.parent / "presets"
     variants = [
         ("49-xlsx-basic", "Excel / 全列の表", ["xlsx"]),

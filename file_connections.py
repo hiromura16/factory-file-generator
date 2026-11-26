@@ -1,4 +1,3 @@
-# モジュール読解: 既存NFSマウントの検証と、SMB・FTP系・SFTPの共有用アダプターを提供する。
 """Direct SMB, FTP(S), SFTP connections and explicitly pre-mounted NFS."""
 
 from __future__ import annotations
@@ -16,8 +15,8 @@ from generation import GenerationError
 from connection_security import connection_file, secret, tls_context
 
 
-# 読解 check_nfs: 最も具体的なマウントの種類と接続元を調べ、NFSでないパスや明示された接続元との不一致を拒否する。マウント操作は行わない。
 def check_nfs(path, expected=""):
+    """既存マウントの種類と接続元を照合する。マウントの操作はホスト側で行う。"""
     resolved = Path(path).resolve()
     matches = []
     for line in Path("/proc/self/mountinfo").read_text().splitlines():
@@ -37,10 +36,11 @@ def check_nfs(path, expected=""):
     return {"filesystem": kind, "source": source}
 
 
-# 読解 ImplicitFTP: 制御接続の開始時点からTLSが必要なFTPサーバー用のクライアント。
 class ImplicitFTP(ftplib.FTP_TLS):
-    # 読解 ImplicitFTP.connect: 指定ホストのTCP接続をすぐTLSで包み、サーバーからの初期応答を返す。省略ポートは990を使う。
+    """制御接続を開いた直後からTLSが必要なFTPSサーバー用のクライアント。"""
+
     def connect(self, host="", port=0, timeout=-999, source_address=None):
+        """ポート未指定なら990番を使う。TLSを確立してからサーバーの初期応答を読む。"""
         self.host = host or self.host
         self.port = port or 990
         if timeout != -999:
@@ -57,10 +57,11 @@ class ImplicitFTP(ftplib.FTP_TLS):
         return self.welcome
 
 
-# 読解 Remote: 共有プロトコル固有の接続とパス表現を、テスト・読書き・解放の共通操作にまとめる。
 class Remote:
-    # 読解 Remote.__init__: 接続プロファイルから対応する共有クライアントを作る。認証、TLSやSSH鍵方針、共有ルートを方式別に適用し、初期化エラーを呼出側へ伝える。
+    """SMB・FTP系・SFTPの接続とファイル操作を包む。パスの扱いは方式ごとに異なる。"""
+
     def __init__(self, p):
+        """方式別の認証とTLS・SSHポリシーを適用し、共有領域に接続する。"""
         self.p = p
         self.client = None
         self.sftp = None
@@ -142,9 +143,8 @@ class Remote:
                         "SSHホスト鍵のSHA256フィンガープリントが必要です"
                     )
 
-                # 読解 Remote.__init__.Pinned: 既知ホストの照合に加え、未知ホストの鍵に指定SHA256と同一であることを求める。
                 class Pinned(paramiko.MissingHostKeyPolicy):
-                    # 読解 Remote.__init__.Pinned.missing_host_key: 受け取った鍵から所定表現の指紋を計算し、設定と異なる場合に接続を拒否する。
+                    """未知のSSHホストを、指定されたSHA256指紋が一致する場合だけ受け入れる。"""
                     def missing_host_key(self, client, hostname, key):
                         actual = "SHA256:" + base64.b64encode(
                             hashlib.sha256(key.asbytes()).digest()
@@ -206,8 +206,8 @@ class Remote:
         else:
             raise GenerationError("SMB / FTP / SFTP共有を選択してください")
 
-    # 読解 Remote.path: 相対名に絶対パス・親参照・逆斜線がないことを確認し、対象共有の区切りでルートへ結合する。
     def path(self, relative):
+        """共有ルートへ相対名を結合する。絶対パス・親参照・逆斜線は拒否する。"""
         if (
             PurePosixPath(relative).is_absolute()
             or ".." in PurePosixPath(relative).parts
@@ -220,8 +220,8 @@ class Remote:
             else posixpath.join(self.root, relative)
         )
 
-    # 読解 Remote.test: 一覧ではなくルートの参照またはFTP NOOPで疎通を確認し、書込なしの結果を返す。
     def test(self):
+        """ルートの参照かFTPのNOOPで疎通を確認する。共有へは書き込まない。"""
         if self.p.kind == "smb":
             self.smb.stat(
                 self.root, port=self.p.port or 445, connection_cache=self.cache
@@ -237,8 +237,11 @@ class Remote:
             "writes": False,
         }
 
-    # 読解 Remote.write: 必要な親階層を作り、プロトコル別に一時名へ書いてから最終名へ変更する。既存確認は競合全般の排他ではなく、失敗時は一時名の削除を試みる。
     def write(self, relative, data):
+        """一時名への書き込みを終えてから、最終名へ変更する。
+
+        既存ファイルの確認だけでは競合を防げない。失敗時は一時ファイルの削除を試みる。
+        """
         target = self.path(relative)
         temporary = target + "." + uuid.uuid4().hex + ".part"
         if self.p.kind == "smb":
@@ -334,8 +337,8 @@ class Remote:
                     pass
                 raise
 
-    # 読解 Remote.read: 共有上の相対ファイルを読む。SMBとSFTPは上限を超えたか判定できるよう1バイト多く読み、FTPは受信中に超過を拒否する。
     def read(self, relative, limit=64 * 1024 * 1024):
+        """共有ファイルを上限付きで読む。受信が上限を超えた場合は失敗とする。"""
         target = self.path(relative)
         if self.p.kind == "smb":
             with self.smb.open_file(
@@ -347,7 +350,6 @@ class Remote:
                 return f.read(limit + 1)
         output = io.BytesIO()
 
-        # 読解 Remote.read.collect: FTP受信片を書き足す前に累計を確認し、上限を越える受信を止める。
         def collect(data):
             if output.tell() + len(data) > limit:
                 raise GenerationError("画像が大きすぎます")
@@ -356,7 +358,6 @@ class Remote:
         self.client.retrbinary("RETR " + target, collect)
         return output.getvalue()
 
-    # 読解 Remote.close: 保有するSFTPチャネルと対応するクライアントまたはSMBのセッションを閉じる。
     def close(self):
         if self.sftp:
             self.sftp.close()

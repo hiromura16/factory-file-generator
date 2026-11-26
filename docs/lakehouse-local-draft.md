@@ -1,13 +1,18 @@
-# Local product export draft (not deployed)
-This opt-in reference mode is limited to one synthetic erp_products CSV batch, at most 1000 records. It is not full Lakehouse parity and does not enable removal of portal generation.
+# 製品マスターCSVのローカル連携
 
-Select files.completion_mode=lakehouse-products-local and the example JSON. An existing absolute local directory must be explicitly allowed by FILE_ALLOWED_ROOTS, owned by the process user and not writable by group/others. Set path_template="."; filename template is fixed to the versioned product name. No connection profile is shipped. No remote, NFS, image, JSON, anomaly/fault or multi-batch support. write_manifest=true is required; in this mode it selects adjacent SHA256 completion instead of v2 JSON. Native manifest-v2 remains the default and unchanged.
+Lakehouseへの取り込み試験で、合成データの製品マスターを1バッチのCSVとして受け渡すモードです。最大1,000件を扱います。
 
-The exporter writes csv/erp_products__<12 lowercase hex run_key>_<nonzero 4digit sequence>.csv and then its adjacent .ready containing exactly lowercase SHA256 plus newline. Exporter and worker must share the agreed landing root; mounting an extra enclosing prefix is not equivalent. The exact reference declared types (four strings, DECIMAL(18,3), datetime), nonempty four text values, positive representable cycle and timezone-bearing timestamp are required; this is intentionally narrower than the full Silver contract. Six columns are validated; full Silver/Gold and other five sources are not tested.
+## 使う準備
 
-Existing equal payload+marker is a no-write retry; payload present without marker can finish the marker if bytes match. Existing conflicts/stale marker/orphan marker are rejected, never overwritten. Files/bytes progress reports actual newly written objects; processed counts validated records even on no-write retry. Generation completion is not downstream ingestion.
+1. `files.completion_mode` に `lakehouse-products-local`、`files.path_template` に `.`、`files.write_manifest` に `true` を指定します。
+2. `FILE_ALLOWED_ROOTS` 内の実在するローカルフォルダを接続先に登録します。実行ユーザーが所有し、グループや他のユーザーには書き込みを許可しないフォルダを使います。
+3. 文字列4列、小数1列（DECIMAL(18,3)）、日時1列を揃えます。日時にはタイムゾーンを付け、文字列は空欄にしません。見本で列の型と並びを確認します。
+4. 受け手と同じランディングルートを使い、出力後にファイルと完了印を確認します。
 
-The new path uses descriptor-relative no-symlink traversal, trusted ancestors (root/user-owned; nonwritable except system sticky directories), privately controlled output directories, a cooperative flock, fsynced temporary bytes and hardlink no-clobber publication. No replace-over-existing. Connection kind=local does not prove filesystem mount type: deployment must separately verify a trusted local filesystem. Required platform is Linux/local filesystem supporting directory fsync/flock/hardlinks. Hostile same-UID processes, root and filesystems violating those semantics are outside this draft assurance.
-A crash between hardlink creation and temporary-name removal leaves link count 2; later retries fail closed and require operator inspection/recovery. Do not delete arbitrary temporary files automatically. This is NOT a general crash-recovery/concurrency proof. A cancellation before publication prevents output; once publication begins it completes the data/marker pair without a cancellation checkpoint between them. A marker failure reports failure and may leave unmarked finalized bytes.
+## 出力を照合する
 
-Unit tests use only fresh private temporary directories and block network connect/process creation. Full existing pytest suite, real S3/Iceberg/SQL, cross-host filesystem behavior, Dokploy and complete downstream parity are not run. No repository publication authorization is implied.
+データは `csv/erp_products__<実行キーの12桁小文字16進識別子>_<4桁連番>.csv` に保存します。同じ場所に `.ready` が作られます。完了印にはデータのSHA256と改行を記録します。
+
+同じデータと完了印があれば書き込み済みとして扱います。データだけがあり内容が同じなら完了印を作成できます。内容が異なる場合や完了印だけが残る場合はエラーにし、既存のファイルは上書きしません。異常終了後は残ったファイルと完了印を照合します。アプリの生成完了とLakehouse側の取り込み完了はそれぞれ確認します。
+
+ローカルLinuxファイルシステムで排他ロック、ハードリンク、ディレクトリ同期を利用します。共有NFSやリモート出力、画像やJSON、複数バッチ、異常注入には通常のファイル出力を使います。

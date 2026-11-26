@@ -1,4 +1,3 @@
-# モジュール読解: 明示選択された製品CSVのローカル出力のみを担当する。標準v2やリモート接続は別アダプターに委ねる。
 """Opt-in single-batch local product fixture export; no remote destinations."""
 
 import csv
@@ -26,7 +25,6 @@ COLUMNS = (
 )
 
 
-# 読解 directory: 絶対パスの各階層をリンク追跡せず開く。所有者と書込権限を確認して固定したディレクトリ記述子を貸し出し、終了時に閉じる。
 @contextmanager
 def directory(path):
     """Open existing absolute directories without following any symlink."""
@@ -55,8 +53,8 @@ def directory(path):
         os.close(fd)
 
 
-# 読解 existing: 親の記述子から既存ファイルを開く。未存在はNone、通常ファイル・所有者・リンク数・容量が条件を満たさなければ拒否する。
 def existing(fd, name):
+    """既存ファイルを親ディレクトリ記述子から開く。未作成ならNoneを返す。"""
     try:
         file = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
     except FileNotFoundError:
@@ -76,8 +74,8 @@ def existing(fd, name):
         return data
 
 
-# 読解 publish: 排他的な一時ファイルを同期し、ハードリンクで最終名を確保する。最終名が先に作られていた場合も上書きせず、一時名を片付ける。
 def publish(fd, name, content):
+    """同期済みの一時ファイルを最終名にリンクし、同名ファイルの上書きを防ぐ。"""
     temporary = ".export-" + secrets.token_hex(16) + ".part"
     file = os.open(
         temporary,
@@ -97,8 +95,11 @@ def publish(fd, name, content):
         os.fsync(fd)
 
 
-# 読解 publish_pair: 出力先単位の排他下でCSVとSHA256完了印の既存状態を照合する。同一再実行は無変更、CSVだけなら同一内容を確認して印を補完し、新規ファイル数とバイト数を返す。
 def publish_pair(fd, name, data):
+    """ロック中にCSVと完了印の状態を照合し、必要なファイルだけを発行する。
+
+    CSVだけが残っている場合は内容を確かめ、同じ内容のときだけ完了印を補う。
+    """
     marker = name + ".ready"
     expected = (hashlib.sha256(data).hexdigest() + "\n").encode("ascii")
     lock = os.open(
@@ -138,7 +139,6 @@ def publish_pair(fd, name, data):
         os.close(lock)
 
 
-# 読解 handle_products: 固定6列・単一バッチの製品CSVだけを許可し、欠損・重複キー・小数精度・時刻・容量を発行前に検査する。許可されたローカル領域にCSVと完了印を書き、実際の書込数を進捗へ反映する。
 def handle_products(spec, ctx, profile):
     """Narrow draft mode, not arbitrary files or a replacement for all sources."""
     options = spec.files

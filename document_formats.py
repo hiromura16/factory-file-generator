@@ -1,4 +1,3 @@
-# モジュール読解: 検証済みの生成行を業務交換向けの文書バイト列へ変換する。保存先への書込みは行わない。
 """Interoperable business documents; generated strings stay literal in spreadsheets."""
 
 import io
@@ -9,8 +8,8 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.sax.saxutils import escape
 
 
-# 読解 arrow_type: 宣言列の数値・日時型をArrowへ対応付け、固定小数の精度とスケール、日時のUTCを維持する。
 def arrow_type(field):
+    """宣言された型をArrow型へ変換し、固定小数の桁数とUTCの日時型を保つ。"""
     import pyarrow as pa
 
     return {
@@ -22,8 +21,8 @@ def arrow_type(field):
     }.get(field.data_type, pa.string())
 
 
-# 読解 typed_rows: 宣言された列順で値を取り出し、小数・UTC日時・JSON文字列を型付き形式向けに整える。欠落値はNoneのまま返す。
 def typed_rows(spec, records):
+    """宣言の列順で固定小数・UTC日時・JSONを変換する。欠落した値はNoneのまま返す。"""
     result = []
     for row in records:
         out = {}
@@ -41,8 +40,8 @@ def typed_rows(spec, records):
     return result
 
 
-# 読解 documents: 指定されたXML/XLSX/Parquet/Avro/PDFのバイト列・拡張子・メディア種別を順次返す。通常の表計算文字列は数式化せず、PDF列の未定義指定は拒否する。
 def documents(spec, records):
+    """交換用文書のバイト列と形式を返す。通常の表計算文字列は数式として扱わない。"""
     options = spec.files
     formats = set(options.formats)
     names = [f.name for f in spec.fields]

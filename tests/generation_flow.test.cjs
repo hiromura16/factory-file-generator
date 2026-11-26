@@ -33,6 +33,7 @@ function fixture() {
       return { ok: true, json: async () => ({ id: "test-job" }) };
     },
   });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../static/api-client.js"), "utf8"), context);
   const source = fs.readFileSync(path.join(__dirname, "../static/app.js"), "utf8");
   const end = source.lastIndexOf("\ninit().catch(");
   assert.ok(end > 0);

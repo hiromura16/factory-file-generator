@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>初めて使う | ファイル生成</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/help.css">
+  <script src="/static/help.js" defer></script>
+</head>
+<body class="help-page">
+  <a class="help-skip" href="#help-content">本文へ移動</a>
+  <div class="help-top">
+    <a class="help-home" href="/">ファイル生成</a>
+    <a href="/">アプリに戻る</a>
+  </div>
+  <div class="help-layout">
+    <nav class="help-nav" aria-label="ヘルプ"><a href="/help/index.html" aria-current="page">初めて使う</a><a href="/help/presets.html">ひな型を選ぶ・作る</a><a href="/help/templates.html">JSONの書き方</a><a href="/help/settings.html">設定リファレンス</a><a href="/help/api.html">APIの使い方</a><a href="/help/glossary.html">用語集</a><a href="/help/ai.html">AIにひな型を頼む</a><a href="/help/install.html">VMへの導入</a><a href="/help/catalog.html">付属のひな型一覧</a></nav>
+    <main class="help-content" id="help-content">
+      <nav class="help-outline" aria-label="このページ"><a href="#最初に試すこと">最初に試すこと</a><a href="#よくある質問">よくある質問</a><a href="#停止と再起動">停止と再起動</a><a href="#想定した結果が出ないとき">想定した結果が出ないとき</a><a href="#書き出されるファイルを確認する">書き出されるファイルを確認する</a><a href="#次に読む">次に読む</a></nav>
+      <article><h1>ファイル生成ツール 操作マニュアル</h1>
+<p>取り込み側がファイル形式、分割、完了通知を解釈できるか検証します。指定件数の合成データをJSON・CSV・疑似画像などにし、ランディング領域へまとめて書き出します。</p>
+<h2 id="最初に試すこと">最初に試すこと</h2>
+<p><strong>CSVを30行作り、10行ずつ3ファイルに分ける</strong>。VMのランディングフォルダにCSVが3本でき、実行履歴に完了が表示されます。</p>
+<p><a href="/help/install.html">Docker Compose導入手順</a>で準備し、VMで <code>http://127.0.0.1:3561/</code> を開きます。</p>
+<p>「出力先」でローカルランディングを選びます。ランディングとは、取り込みツールが新しいファイルを探しに来る受け渡し用フォルダです。見るだけなら、見本の段階までで十分です。</p>
+<ol>
+<li>「ファイルをつくる」で「保存した設定を使う」を開き、「小さく試す」を選んで「ひな型を読み込む」を押します。</li>
+<li>「CSVだけ」を選び、生成する件数を <code>30</code> にします。「詳細設定 → 形式ごとの詳細と完了通知」で「ファイルあたりの件数」を <code>10</code> にします。</li>
+<li>「サンプルを確認」を押します。1行目が列名（ヘッダー）で、その下がデータです。区切り文字と文字コードが取り込み側と揃っているか見ます。</li>
+<li>「ファイルを出力する」で保存先を照合し、実行します。「実行履歴」に完了が出たら <code>.env</code> の <code>LANDING_DIR</code> でデータCSV3本を探します。完了通知用のファイルがある場合は別に数えます。</li>
+</ol>
+<p><a href="/help/images/operation-guide.png"><img src="/help/images/operation-guide.png" alt="最初の操作と確認箇所" loading="lazy" /></a></p>
+<h2 id="よくある質問">よくある質問</h2>
+<h3 id="見本を作ると保存先にも書き込まれますか">見本を作ると保存先にも書き込まれますか？</h3>
+<p>見本は画面内の確認です。保存先への書き込みは出力を実行した時点で始まります。</p>
+<h3 id="csvを受け取ったのに取り込み側が動きません">CSVを受け取ったのに取り込み側が動きません</h3>
+<p>取り込み側が完了印を待っている場合は、実行履歴と、完了通知形式に対応するマニフェストまたは完了ファイルを確認します。</p>
+<h3 id="csvの列名や並びはどこで変更しますか">CSVの列名や並びはどこで変更しますか？</h3>
+<p>「詳細設定」のデータ項目と生成ルールで、列として出す項目名と順序を編集し、もう一度見本を出します。</p>
+<h2 id="停止と再起動">停止と再起動</h2>
+<p>ジョブは完了すると停止します。途中停止を選んだ場合は部分出力が残ることがあるため、取り込み側で完了印を確認します。</p>
+<h2 id="想定した結果が出ないとき">想定した結果が出ないとき</h2>
+<p>実行履歴が失敗の場合は出力先の権限と空き容量を先に確認します。ファイルが見えてもマニフェストのないバンドルは、マニフェスト待ちの収集では未完了の扱いです。</p>
+<h2 id="書き出されるファイルを確認する">書き出されるファイルを確認する</h2>
+<table>
+<thead>
+<tr>
+<th>形式</th>
+<th>詳細設定の入口</th>
+<th>受け取り側で確認すること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON</td>
+<td>JSONの書式・テンプレート</td>
+<td>配列、1件1ファイル、JSON Linesを区別し、入れ子のキーを照合する。</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td>区切り、ヘッダー、文字コード</td>
+<td>結合する列とUTF-8／BOMの有無を確認する。</td>
+</tr>
+<tr>
+<td>画像</td>
+<td>寸法、色、間引き</td>
+<td>PNG/JPEGの形式とレコードとの対応を確認する。</td>
+</tr>
+<tr>
+<td>Excel・XML</td>
+<td>シート名、ルートと行の要素名</td>
+<td>ブック内の列、またはXML要素の形を確認する。</td>
+</tr>
+<tr>
+<td>Parquet・Avro</td>
+<td>圧縮、Avroのレコード名</td>
+<td>読み取り側の列型と、圧縮方式の対応を確認する。</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>ページの向き、列</td>
+<td>列の並び、文字の幅、ページを確認する。</td>
+</tr>
+</tbody>
+</table>
+<p>標準の完了通知は、生成ファイルの一覧・バイト数・SHA256などを含む <code>.ready.json</code> です。出力例では、1バッチのデータファイルと完了通知が同じバッチの保存場所に並びます。取り込みの開始は完了通知を見て判断します。</p>
+<p>更新率・削除率は、合成列 <code>file_event_operation</code> の抽選確率です。既存ファイルを上書き・削除する操作とは独立しています。</p>
+<p><code>json_template</code> はJSONの本文に適用されます。CSV・XLSXなどは同じ生成項目を平らな行として展開します。ファイル名は <code>path_template</code> と <code>filename_template</code> で変えられます。</p>
+<p>たとえば試験の実行キーと実行IDを出力パスに使う構成では、各実行の下に次のようにまとめられます。</p>
+<pre><code class="language-text">&lt;run_key&gt;/&lt;job_id&gt;/
+  csv/records_00001.csv
+  csv/records_00002.csv
+  csv/records_00003.csv
+  manifests/&lt;バッチ名&gt;.ready.json
+</code></pre>
+<p>完了マニフェストの <code>artifacts</code> を見ると、各ファイルの <code>path</code>、サイズ、SHA256を照合できます。実際のファイル名とマニフェストの数はバッチ条件とファイル名テンプレートに従います。</p>
+<h2 id="次に読む">次に読む</h2>
+<ul>
+<li><a href="/help/presets.html">ひな型を選ぶ・作る</a></li>
+<li><a href="/help/settings.html">設定リファレンス</a></li>
+<li><a href="/help/templates.html">JSONの書き方</a></li>
+<li><a href="/help/api.html">APIの使い方</a></li>
+<li><a href="/help/glossary.html">用語集</a></li>
+</ul>
+</article>
+    </main>
+  </div>
+</body>
+</html>

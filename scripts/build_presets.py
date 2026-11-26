@@ -1,4 +1,3 @@
-# モジュール読解: 種別ごとの配布プリセット群を設定モデルから再生成するCLI。既存のヘルプ文面は別に維持する。
 """Rebuild the public, credential-free preset library. No network or writes to a DB."""
 
 from __future__ import annotations
@@ -12,12 +11,12 @@ from config import RunSpec, FieldRule, Condition  # noqa: E402
 from generation import validate_generation  # noqa: E402
 
 
-# 読解 library: 指定種別の通常・異常シナリオをIDから設定モデルへの対応として構築する。
 def library(kind):
+    """指定ツールの正常・異常シナリオをID付きの実行設定として返す。"""
     result = {}
 
-    # 読解 library.add: シナリオの共通初期値を組み立て、指定IDでライブラリへ追加する。
     def add(identity, name, description, rows=120, rate=0):
+        """共通の初期値と付与された説明から、新しいプリセットを登録する。"""
         spec = RunSpec(
             name=name,
             description=description,
@@ -681,8 +680,8 @@ def library(kind):
     return result
 
 
-# 読解 write_library: 対象ディレクトリを作り、設定JSONと人が参照できる索引を出力する。
 def write_library(kind, directory):
+    """配布用のJSONと、用途を確認するための索引を出力する。"""
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     rows = [

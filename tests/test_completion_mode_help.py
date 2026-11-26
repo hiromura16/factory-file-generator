@@ -1,4 +1,3 @@
-# モジュール読解: 完了通知モードの説明が公開スキーマと実ハンドラーで欠けないことを確認する。
 """Completion-mode help must be available to schema and API callers."""
 
 import ast
@@ -9,9 +8,7 @@ from pathlib import Path
 from helptext import annotated_schemas
 
 
-# 読解 CompletionModeHelpTests: 設定モデルと配布スキーマを接続先なしで比較する回帰試験。
 class CompletionModeHelpTests(unittest.TestCase):
-    # 読解 CompletionModeHelpTests.test_all_schema_kinds_have_completion_help: 全種類のスキーマで既定値・選択肢・説明が取得できることを確認する。
     def test_all_schema_kinds_have_completion_help(self):
         for kind in (None, "files", "sql", "stream"):
             with self.subTest(kind=kind):
@@ -26,7 +23,6 @@ class CompletionModeHelpTests(unittest.TestCase):
                 self.assertIn("隣接SHA256", prop["description"])
                 self.assertIn("下流取込の完了は保証しません", prop["description"])
 
-    # 読解 CompletionModeHelpTests.test_published_property_matches_annotation: 配布済みJSONの対象項目が、現在の注釈生成結果と一致することを確認する。
     def test_published_property_matches_annotation(self):
         root = Path(__file__).resolve().parents[1]
         published = json.loads((root / "contracts/preset.schema.json").read_text())
@@ -36,7 +32,6 @@ class CompletionModeHelpTests(unittest.TestCase):
             actual["$defs"]["FileOptions"]["properties"]["completion_mode"],
         )
 
-    # 読解 CompletionModeHelpTests.test_actual_schema_endpoint_body_without_startup: 固定ソースからルートの関数本体だけを取り出し、起動時の保存領域作成なしで応答を確認する。
     def test_actual_schema_endpoint_body_without_startup(self):
         # Execute the real read-only endpoint body, not store/runtime startup.
         root = Path(__file__).resolve().parents[1]
