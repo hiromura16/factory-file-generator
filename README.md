@@ -27,6 +27,8 @@ DATA_DIR=./data uv run --frozen uvicorn app:app --host 127.0.0.1 --port 3561
 - [初心者マニュアル](docs/user-manual.md) · [ひな型を選ぶ・作る](docs/preset-guide.md) · [付属のひな型一覧](presets/README.md)
 - [設定リファレンス](docs/settings-reference.md) · [JSONの書き方](docs/template-guide.md) · [AI向け作成ハーネス](docs/AI_TEMPLATE_HARNESS.md)
 - [APIの使い方](docs/api-guide.md) · [用語集](docs/glossary.md) · [コードを拡張する](docs/code-reading-guide.md) · [変更履歴](CHANGELOG.md) · [レビュー対応表](docs/quality-review.md)
+AIクライアント向けの接続方法は[CLI・MCPの使い方](docs/mcp.md)を参照してください。
+
 
 任意のデータ項目からJSON、CSV、人工的な検査パターン画像、XLSX、XML、Parquet、Avro、PDFを生成します。
 
@@ -89,11 +91,13 @@ JSONは配列・1件1ファイル・JSONL、任意の入れ子構造、整形、
 
 ## APIと検証
 
+契約スキーマを更新するには `uv run --frozen python scripts/export_contracts.py` を実行します。`--check` を付けると、配布ファイルを変更せずに現在の定義と照合します。
+
 管理APIの例: `/api/info`、`/api/schemas`、`/api/connections`、`/api/presets`、`/api/preview`、`/api/runs`。プロファイル保存後の`/api/connections/{id}/test`は保存済み設定を検証します。`/healthz` は稼働確認、`/metrics` は管理用のメトリクスです。UIとAPIの変更操作は同一オリジンとJSONを要求します。
 
 ```sh
 uv run pytest -q
-uvx ruff check .
+uvx ruff@0.17.6 check --select E4,E7,E9,F .
 ```
 
 過去の実行履歴・設定・出力ファイルは保持します。旧設定に含まれる他のツール向けの欄は、ファイル生成の画面には表示しません。

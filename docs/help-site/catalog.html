@@ -15,7 +15,7 @@
     <a href="/">アプリに戻る</a>
   </div>
   <div class="help-layout">
-    <nav class="help-nav" aria-label="ヘルプ"><a href="/help/index.html">初めて使う</a><a href="/help/presets.html">ひな型を選ぶ・作る</a><a href="/help/templates.html">JSONの書き方</a><a href="/help/settings.html">設定リファレンス</a><a href="/help/api.html">APIの使い方</a><a href="/help/glossary.html">用語集</a><a href="/help/ai.html">AIにひな型を頼む</a><a href="/help/install.html">VMへの導入</a><a href="/help/catalog.html" aria-current="page">付属のひな型一覧</a></nav>
+    <nav class="help-nav" aria-label="ヘルプ"><a href="/help/index.html">初めて使う</a><a href="/help/presets.html">ひな型を選ぶ・作る</a><a href="/help/templates.html">JSONの書き方</a><a href="/help/settings.html">設定リファレンス</a><a href="/help/api.html">APIの使い方</a><a href="/help/glossary.html">用語集</a><a href="/help/ai.html">AIにひな型を頼む</a><a href="/help/mcp.html">CLI・MCP</a><a href="/help/install.html">VMへの導入</a><a href="/help/catalog.html" aria-current="page">付属のひな型一覧</a></nav>
     <main class="help-content" id="help-content">
       <nav class="help-outline" aria-label="このページ"><a href="#ひな型ごとの内容">ひな型ごとの内容</a></nav>
       <div class="help-search" hidden><label for="help-filter">表を検索</label><input id="help-filter" type="search" placeholder="日本語、ID、JSONキー"><p id="help-results" role="status"></p></div>
@@ -28,7 +28,7 @@
 <th>ID</th>
 <th>表示名</th>
 <th>元の件数</th>
-<th>想定</th>
+<th>生成する内容</th>
 </tr>
 </thead>
 <tbody>
@@ -36,373 +36,373 @@
 <td><a href="#01-quickstart">01-quickstart</a></td>
 <td>小さく試す</td>
 <td>30</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>目標速度 10件/秒、1バッチ 10件で試す</td>
 </tr>
 <tr>
 <td><a href="#02-volume-100k">02-volume-100k</a></td>
 <td>10万件 / 負荷計測</td>
 <td>100000</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>目標速度 1,000件/秒、1バッチ 1,000件で試す</td>
 </tr>
 <tr>
 <td><a href="#03-volume-1m">03-volume-1m</a></td>
 <td>100万件 / 連続生成</td>
 <td>1000000</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>目標速度 5,000件/秒、1バッチ 2,000件で試す</td>
 </tr>
 <tr>
 <td><a href="#04-volume-10m">04-volume-10m</a></td>
 <td>1000万件 / 大規模試験</td>
 <td>10000000</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>目標速度 10,000件/秒、1バッチ 5,000件で試す</td>
 </tr>
 <tr>
 <td><a href="#05-jsonl">05-jsonl</a></td>
 <td>JSONL / 1行1レコード</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>JSONのみ。1ファイル50件の改行区切りJSON</td>
 </tr>
 <tr>
 <td><a href="#06-nested-json">06-nested-json</a></td>
 <td>入れ子JSON / 属性と測定値</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>共有パラメーターと生成項目から入れ子のオブジェクト・配列を作ります</td>
 </tr>
 <tr>
 <td><a href="#07-object-gzip">07-object-gzip</a></td>
 <td>単件JSON / gzip圧縮</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>1レコード1ファイルのJSONをgzip圧縮</td>
 </tr>
 <tr>
 <td><a href="#08-pretty-unicode">08-pretty-unicode</a></td>
 <td>整形JSON / 日本語</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>日本語を含むJSONを字下げして保存します</td>
 </tr>
 <tr>
 <td><a href="#09-csv-semicolon">09-csv-semicolon</a></td>
 <td>CSV / セミコロン・全引用</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>全セル引用、セミコロン区切り、CRLF、BOM付きUTF-8</td>
 </tr>
 <tr>
 <td><a href="#10-tsv-no-header">10-tsv-no-header</a></td>
 <td>TSV / タブ区切り・ヘッダーなし</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>タブ区切り、ヘッダーなし、BOMなしUTF-8。拡張子は.csvです</td>
 </tr>
 <tr>
 <td><a href="#11-csv-null-marker">11-csv-null-marker</a></td>
 <td>CSV / NULLと引用規則</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>欠測値をNULL文字列で表現。文字列セルを引用します</td>
 </tr>
 <tr>
 <td><a href="#12-csv-gzip">12-csv-gzip</a></td>
 <td>CSV / gzip分割</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>50件ずつCSVを分割しgzipで保存します</td>
 </tr>
 <tr>
 <td><a href="#13-grid-png">13-grid-png</a></td>
 <td>画像 / 格子PNG</td>
 <td>12</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>格子の人工画像とsidecarを全レコード分生成</td>
 </tr>
 <tr>
 <td><a href="#14-gradient-jpeg">14-gradient-jpeg</a></td>
 <td>画像 / グラデーションJPEG</td>
 <td>12</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>640×480のグラデーション。品質75で保存します</td>
 </tr>
 <tr>
 <td><a href="#15-dots-noise">15-dots-noise</a></td>
 <td>画像 / 点群とノイズ</td>
 <td>12</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>256×256の点群に小さなノイズ。疑似欠陥率20%</td>
 </tr>
 <tr>
 <td><a href="#16-defect-labels">16-defect-labels</a></td>
 <td>画像 / 疑似欠陥ラベル</td>
 <td>8</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>全画像に傷状の線を描き、sidecarのラベルを確認します</td>
 </tr>
 <tr>
 <td><a href="#17-custom-colors">17-custom-colors</a></td>
 <td>画像 / 色と寸法を変更</td>
 <td>8</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>512×128、明るい背景・青い格子・赤い疑似欠陥</td>
 </tr>
 <tr>
 <td><a href="#18-sparse-images">18-sparse-images</a></td>
 <td>表データ多数 / 画像は間引く</td>
 <td>1000</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>JSONとCSVは全件、画像は100件に1枚</td>
 </tr>
 <tr>
 <td><a href="#19-custom-paths">19-custom-paths</a></td>
 <td>任意パス / 命名テンプレート</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>area共有値をディレクトリ名に使用し、連番中心のファイル名を付けます</td>
 </tr>
 <tr>
 <td><a href="#20-json-array-values">20-json-array-values</a></td>
 <td>JSON配列の本文 / 任意構造</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>各行を[id, entity_id, value]の配列に変換します</td>
 </tr>
 <tr>
 <td><a href="#21-one-record-batches">21-one-record-batches</a></td>
 <td>最小分割 / 1件ごとに確定</td>
 <td>20</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>1レコードずつJSON・CSV・マニフェストを保存します</td>
 </tr>
 <tr>
 <td><a href="#22-complete-bundle">22-complete-bundle</a></td>
 <td>全形式 / 対応関係の確認</td>
 <td>20</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>JSON・CSV・画像・sidecar・SHA256付き完了マニフェストをまとめて確認</td>
 </tr>
 <tr>
 <td><a href="#23-burst-files">23-burst-files</a></td>
 <td>バースト生成 / 100件ずつ</td>
 <td>500</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>100件単位で2秒待機。ファイル到着の偏りを再現します</td>
 </tr>
 <tr>
 <td><a href="#24-missing-and-weighted">24-missing-and-weighted</a></td>
 <td>欠測と偏り / 混在レコード</td>
 <td>120</td>
-<td>設備・検査装置・バッチ連携からランディングへ届くファイルを想定し、指定した形式の読み込み互換性を確認します</td>
+<td>状態比率90:9:1、値の欠測率15%、JSONLとCSV</td>
 </tr>
 <tr>
 <td><a href="#25-mes-sensor-spike">25-mes-sensor-spike</a></td>
 <td>異常 / MES センサーの突発値</td>
 <td>120</td>
-<td>測定系への瞬間的なノイズや設備の異常発熱を想定。平均50付近の値に短い高値区間を混ぜます</td>
+<td>valueを20〜39件目だけ250へ変更。前後は通常の正規分布です</td>
 </tr>
 <tr>
 <td><a href="#26-mes-sensor-drift">26-mes-sensor-drift</a></td>
 <td>異常 / MES センサーの徐々なドリフト</td>
 <td>120</td>
-<td>校正ずれや温度上昇で値が徐々に偏るケース。単発の閾値超過より検知しにくい変化を再現します</td>
+<td>valueへ20件目から1件ごとに2を追加するramp。39件目で最大+38、その後は復帰</td>
 </tr>
 <tr>
 <td><a href="#27-mes-stuck-signal">27-mes-stuck-signal</a></td>
 <td>異常 / MES センサー値の固着</td>
 <td>120</td>
-<td>センサーや通信キャッシュが停止し、時刻やレコードは増えるのに測定値が変化しない状態</td>
+<td>20〜39件目のvalueを20件目の値に固定します。IDとevent_timeは進みます</td>
 </tr>
 <tr>
 <td><a href="#28-mes-missing-values">28-mes-missing-values</a></td>
 <td>異常 / MES 測定値の欠測</td>
 <td>120</td>
-<td>一時的な機器読み取り失敗や、MESへの登録時に測定値が空になるケース</td>
+<td>20〜39件目で50%の確率でvalueをNULL。seedが同じなら欠測位置も再現します</td>
 </tr>
 <tr>
 <td><a href="#29-mes-late-events">29-mes-late-events</a></td>
 <td>異常 / MES 遅延・順序逆転</td>
 <td>120</td>
-<td>設備側のバッファやネットワーク遅延で、遅いイベント時刻のデータが後から到着する状態</td>
+<td>20〜39件目のうち2件ごとにevent_timeを120秒戻します。配送順そのものはシーケンス順です</td>
 </tr>
 <tr>
 <td><a href="#30-mes-clock-skew">30-mes-clock-skew</a></td>
 <td>異常 / MES 設備時計が未来へずれる</td>
 <td>120</td>
-<td>NTP不調や設備時計の設定誤りで、1日先の時刻が登録されるケース</td>
+<td>20〜39件目のevent_timeを86400秒進めます。タイムゾーン表記は有効なままです</td>
 </tr>
 <tr>
 <td><a href="#31-mes-unit-mismatch">31-mes-unit-mismatch</a></td>
 <td>異常 / MES 単位・倍率の食い違い</td>
 <td>120</td>
-<td>単位変更が伝わらず、kPa/Paやmm/µmのように1000倍の値が混在する状況</td>
+<td>20〜39件目のvalueを1000倍にします。列名や型は変えません</td>
 </tr>
 <tr>
 <td><a href="#32-mes-unknown-state">32-mes-unknown-state</a></td>
 <td>異常 / MES 未知の状態コード</td>
 <td>120</td>
-<td>設備ファームウェアやMESバージョン更新で、未定義の状態コードが出るケース</td>
+<td>20〜39件目のstatusをUNKNOWN_CODEへ変更します。文字列としては正常です</td>
 </tr>
 <tr>
 <td><a href="#33-mes-negative-quantity">33-mes-negative-quantity</a></td>
 <td>異常 / MES 負の生産数量</td>
 <td>120</td>
-<td>符号の取り違えや取消処理を通常実績として登録してしまうケース</td>
+<td>totalを-20へ変更。good/reject/yield_ratioは変更前の計算値を残します</td>
 </tr>
 <tr>
 <td><a href="#34-mes-reject-exceeds-total">34-mes-reject-exceeds-total</a></td>
 <td>異常 / MES 不良数が生産数を超える</td>
 <td>120</td>
-<td>不良実績の二重登録や集計単位の混在で、不良数が総数より大きくなる状態</td>
+<td>rejectを180へ変更。通常のtotalは100〜120です</td>
 </tr>
 <tr>
 <td><a href="#35-mes-impossible-yield">35-mes-impossible-yield</a></td>
 <td>異常 / MES 歩留まりが100%を超える</td>
 <td>120</td>
-<td>歩留まりの分母間違い、パーセントと比率の混同などを想定</td>
+<td>yield_ratioだけを1.2へ変更。total/good/rejectは正常のままです</td>
 </tr>
 <tr>
 <td><a href="#36-mes-orphan-work-order">36-mes-orphan-work-order</a></td>
 <td>異常 / MES 存在しない製造指図</td>
 <td>120</td>
-<td>MES実績がERPの指図マスターへ結合できないケース。連携順序のずれも想定します</td>
+<td>work_order_idをWO-MISSINGへ変更。通常の有効IDはparameters.valid_work_ordersに列挙しています</td>
 </tr>
 <tr>
 <td><a href="#37-mes-route-step-jump">37-mes-route-step-jump</a></td>
 <td>異常 / MES 工程番号の飛び</td>
 <td>120</td>
-<td>工程スキップ、ルート版の違い、手入力ミスで予定外の工程番号が記録される状態</td>
+<td>process_stepへ100を加えます。通常は0〜4の周期です</td>
 </tr>
 <tr>
 <td><a href="#38-erp-negative-stock">38-erp-negative-stock</a></td>
 <td>異常 / ERP マイナス在庫</td>
 <td>120</td>
-<td>出庫の先行連携、二重出庫、棚卸調整の誤りで在庫が負になるケース</td>
+<td>qty_on_handを-5へ変更。reserved/availableは元の値を残します</td>
 </tr>
 <tr>
 <td><a href="#39-erp-over-reservation">39-erp-over-reservation</a></td>
 <td>異常 / ERP 引当が在庫を超える</td>
 <td>120</td>
-<td>並行した指図引当や在庫更新の遅れにより、在庫以上に予約される状態</td>
+<td>reservedを2000へ変更。通常qty_on_handは100〜1000です</td>
 </tr>
 <tr>
 <td><a href="#40-erp-amount-discrepancy">40-erp-amount-discrepancy</a></td>
 <td>異常 / ERP 数量×単価と金額の不一致</td>
 <td>120</td>
-<td>丸め差、税区分、転記ミス、誤った再計算で請求金額が合わないケース</td>
+<td>amountへ0.01加算。quantityとunit_priceは変更しません</td>
 </tr>
 <tr>
 <td><a href="#41-erp-duplicate-document">41-erp-duplicate-document</a></td>
 <td>異常 / ERP 業務伝票の重複</td>
 <td>120</td>
-<td>取り込みの再実行や送信側リトライで、同じ伝票番号が別レコードとして届く状態</td>
+<td>20〜39件目のdocument_idを先頭行の番号に置き換えます。技術的なidは異なるため通常のPKでは検知できません</td>
 </tr>
 <tr>
 <td><a href="#42-erp-orphan-product">42-erp-orphan-product</a></td>
 <td>異常 / ERP 未登録の品目参照</td>
 <td>120</td>
-<td>品目マスターより先に明細が届く、または廃番・コード変換の誤りで結合に失敗するケース</td>
+<td>product_idをPRODUCT-MISSINGへ変更。通常の有効コードはparameters.valid_productsに列挙しています</td>
 </tr>
 <tr>
 <td><a href="#43-invalid-value-type">43-invalid-value-type</a></td>
 <td>異常 / 数値欄へ文字列が混入</td>
 <td>120</td>
-<td>機器が数値の代わりにエラー文字列を返す、CSV連携で型推論が崩れる状況</td>
+<td>valueへSENSOR_ERRORを入れ、型検証の迂回を明示的に有効化します</td>
 </tr>
 <tr>
 <td><a href="#44-missing-required-field">44-missing-required-field</a></td>
 <td>異常 / 必須項目そのものが欠落</td>
 <td>120</td>
-<td>ソースのスキーマ変更やシリアライズ不具合で、NULLではなくキー自体が消えるケース</td>
+<td>20〜39件目のvalueキーを削除します。JSON/ストリームは欠落、CSVは空セルになります</td>
 </tr>
 <tr>
 <td><a href="#45-file-truncated-json">45-file-truncated-json</a></td>
 <td>異常 / ファイル JSONの途中切れ</td>
 <td>120</td>
-<td>ファイル転送や生成途中の中断で、JSONが構文として壊れた状態</td>
+<td>JSONファイルの後半を意図的に切り落とします。CSVは正常で比較できます</td>
 </tr>
 <tr>
 <td><a href="#46-file-incomplete-bundle">46-file-incomplete-bundle</a></td>
 <td>異常 / ファイル 完了前の中断</td>
 <td>120</td>
-<td>JSON/CSVの一部または全部が到着しても、バッチの完了通知がまだないケース</td>
+<td>ファイル保存後、ready.json作成前に意図的に停止。出力済みファイルはそのまま保持します</td>
 </tr>
 <tr>
 <td><a href="#47-file-checksum-mismatch">47-file-checksum-mismatch</a></td>
 <td>異常 / ファイル チェックサム不一致</td>
 <td>120</td>
-<td>メタデータと実ファイルの版違いや転送破損を想定</td>
+<td>完了マニフェストの最初のSHA256だけを誤った値にします。実ファイルは正常です</td>
 </tr>
 <tr>
 <td><a href="#48-file-corrupt-images">48-file-corrupt-images</a></td>
 <td>異常 / 画像 破損・デコード失敗</td>
 <td>12</td>
-<td>検査画像が途中で切れ、画像ヘッダーがあっても正常にデコードできないケース</td>
+<td>人工PNGを先頭1/4に切り詰めます。sidecarとmanifestは残します</td>
 </tr>
 <tr>
 <td><a href="#49-xlsx-basic">49-xlsx-basic</a></td>
 <td>Excel / 全列の表</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてExcel / 全列の表を受け渡すケース</td>
+<td>元の列をすべて含むExcelのワークシートを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#50-xlsx-japanese">50-xlsx-japanese</a></td>
 <td>Excel / 日本語とNULL</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてExcel / 日本語とNULLを受け渡すケース</td>
+<td>日本語の稼働状態と欠測値を「設備データ」シートに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#51-xml-records">51-xml-records</a></td>
 <td>XML / UTF-8レコード</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてXML / UTF-8レコードを受け渡すケース</td>
+<td>recordsルートの下にrecord要素を並べたUTF-8のXMLを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#52-xml-custom">52-xml-custom</a></td>
 <td>XML / 要素名を変更</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてXML / 要素名を変更を受け渡すケース</td>
+<td>XMLのルート名をmeasurements、行要素名をsampleに変えて出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#53-parquet-snappy">53-parquet-snappy</a></td>
 <td>Parquet / Snappy</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてParquet / Snappyを受け渡すケース</td>
+<td>項目定義で型を固定し、Snappy圧縮を使ったParquetを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#54-parquet-zstd">54-parquet-zstd</a></td>
 <td>Parquet / Zstandard</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてParquet / Zstandardを受け渡すケース</td>
+<td>項目定義で型を固定し、Zstandard圧縮を使ったParquetを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#55-avro-deflate">55-avro-deflate</a></td>
 <td>Avro / スキーマ付き圧縮</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてAvro / スキーマ付き圧縮を受け渡すケース</td>
+<td>項目定義からスキーマを作り、deflate圧縮を使ったAvroを出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#56-avro-uncompressed">56-avro-uncompressed</a></td>
 <td>Avro / 圧縮なし</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてAvro / 圧縮なしを受け渡すケース</td>
+<td>項目定義からスキーマを作り、圧縮をかけずにAvroを出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#57-pdf-landscape">57-pdf-landscape</a></td>
 <td>PDF / 横向きレポート</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてPDF / 横向きレポートを受け渡すケース</td>
+<td>元の表を横向きのPDFに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#58-pdf-selected">58-pdf-selected</a></td>
 <td>PDF / 列指定・縦向き</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてPDF / 列指定・縦向きを受け渡すケース</td>
+<td>設備ID・測定値・状態の3列を縦向きのPDFに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#59-business-bundle">59-business-bundle</a></td>
 <td>業務文書 / 5形式を同時生成</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとして業務文書 / 5形式を同時生成を受け渡すケース</td>
+<td>同じレコードをExcel、XML、Parquet、Avro、PDFの5形式に出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#60-decimal-documents">60-decimal-documents</a></td>
 <td>金額・数量 / 型付き文書</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとして金額・数量 / 型付き文書を受け渡すケース</td>
+<td>数量と小数2桁の単価・金額をExcel、Parquet、Avroに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#61-report-and-source">61-report-and-source</a></td>
 <td>CSV・Excel・PDF / 同じデータ</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてCSV・Excel・PDF / 同じデータを受け渡すケース</td>
+<td>同じレコードからCSVの元データ、編集用のExcel、閲覧用のPDFを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 <tr>
 <td><a href="#62-json-and-xml">62-json-and-xml</a></td>
 <td>JSON・XML / 構造の比較</td>
 <td>20</td>
-<td>業務連携・検査レポート・型付き分析データとしてJSON・XML / 構造の比較を受け渡すケース</td>
+<td>同じレコードをJSONとXMLへ出力して構造を比較できます。同じバッチの全ファイルとSHA256を完了マニフェストに記録します</td>
 </tr>
 </tbody>
 </table>
@@ -794,114 +794,114 @@
 <h3 id="49-xlsx-basic">49-xlsx-basic</h3>
 <p><strong>Excel / 全列の表</strong> · <a href="/help/preset-files/49-xlsx-basic.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてExcel / 全列の表を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxlsx形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Excel / 全列の表の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　元の列をすべて含むExcelのワークシートを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="50-xlsx-japanese">50-xlsx-japanese</h3>
 <p><strong>Excel / 日本語とNULL</strong> · <a href="/help/preset-files/50-xlsx-japanese.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてExcel / 日本語とNULLを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxlsx形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Excel / 日本語とNULLの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　日本語の稼働状態と欠測値を「設備データ」シートに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="51-xml-records">51-xml-records</h3>
 <p><strong>XML / UTF-8レコード</strong> · <a href="/help/preset-files/51-xml-records.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてXML / UTF-8レコードを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxml形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　XML / UTF-8レコードの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　recordsルートの下にrecord要素を並べたUTF-8のXMLを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="52-xml-custom">52-xml-custom</h3>
 <p><strong>XML / 要素名を変更</strong> · <a href="/help/preset-files/52-xml-custom.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてXML / 要素名を変更を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxml形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　XML / 要素名を変更の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　XMLのルート名をmeasurements、行要素名をsampleに変えて出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="53-parquet-snappy">53-parquet-snappy</h3>
 <p><strong>Parquet / Snappy</strong> · <a href="/help/preset-files/53-parquet-snappy.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてParquet / Snappyを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをparquet形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Parquet / Snappyの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　項目定義で型を固定し、Snappy圧縮を使ったParquetを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="54-parquet-zstd">54-parquet-zstd</h3>
 <p><strong>Parquet / Zstandard</strong> · <a href="/help/preset-files/54-parquet-zstd.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてParquet / Zstandardを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをparquet形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Parquet / Zstandardの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　項目定義で型を固定し、Zstandard圧縮を使ったParquetを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="55-avro-deflate">55-avro-deflate</h3>
 <p><strong>Avro / スキーマ付き圧縮</strong> · <a href="/help/preset-files/55-avro-deflate.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてAvro / スキーマ付き圧縮を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをavro形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Avro / スキーマ付き圧縮の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　項目定義からスキーマを作り、deflate圧縮を使ったAvroを出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="56-avro-uncompressed">56-avro-uncompressed</h3>
 <p><strong>Avro / 圧縮なし</strong> · <a href="/help/preset-files/56-avro-uncompressed.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてAvro / 圧縮なしを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをavro形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　Avro / 圧縮なしの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　項目定義からスキーマを作り、圧縮をかけずにAvroを出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="57-pdf-landscape">57-pdf-landscape</h3>
 <p><strong>PDF / 横向きレポート</strong> · <a href="/help/preset-files/57-pdf-landscape.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてPDF / 横向きレポートを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをpdf形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　PDF / 横向きレポートの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　元の表を横向きのPDFに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="58-pdf-selected">58-pdf-selected</h3>
 <p><strong>PDF / 列指定・縦向き</strong> · <a href="/help/preset-files/58-pdf-selected.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてPDF / 列指定・縦向きを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをpdf形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　PDF / 列指定・縦向きの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　設備ID・測定値・状態の3列を縦向きのPDFに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="59-business-bundle">59-business-bundle</h3>
 <p><strong>業務文書 / 5形式を同時生成</strong> · <a href="/help/preset-files/59-business-bundle.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとして業務文書 / 5形式を同時生成を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxlsx, xml, parquet, avro, pdf形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　業務文書 / 5形式を同時生成の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　同じレコードをExcel、XML、Parquet、Avro、PDFの5形式に出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="60-decimal-documents">60-decimal-documents</h3>
 <p><strong>金額・数量 / 型付き文書</strong> · <a href="/help/preset-files/60-decimal-documents.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとして金額・数量 / 型付き文書を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをxlsx, parquet, avro形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　金額・数量 / 型付き文書の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　数量と小数2桁の単価・金額をExcel、Parquet、Avroに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="61-report-and-source">61-report-and-source</h3>
 <p><strong>CSV・Excel・PDF / 同じデータ</strong> · <a href="/help/preset-files/61-report-and-source.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてCSV・Excel・PDF / 同じデータを受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをcsv, xlsx, pdf形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　CSV・Excel・PDF / 同じデータの出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　同じレコードからCSVの元データ、編集用のExcel、閲覧用のPDFを作ります。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 <h3 id="62-json-and-xml">62-json-and-xml</h3>
 <p><strong>JSON・XML / 構造の比較</strong> · <a href="/help/preset-files/62-json-and-xml.json">JSONをダウンロード</a></p>
 <ul>
-<li><strong>想定</strong>　業務連携・検査レポート・型付き分析データとしてJSON・XML / 構造の比較を受け渡すケース。</li>
-<li><strong>生成内容</strong>　20レコードをjson, xml形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。</li>
-<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。</li>
-<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。</li>
+<li><strong>想定</strong>　JSON・XML / 構造の比較の出力設定を確認する例です。</li>
+<li><strong>生成内容</strong>　同じレコードをJSONとXMLへ出力して構造を比較できます。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。</li>
+<li><strong>確認事項</strong>　文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。</li>
+<li><strong>実行前</strong>　保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。</li>
 </ul>
 </article>
     </main>

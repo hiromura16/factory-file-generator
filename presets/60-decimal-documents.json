@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "金額・数量 / 型付き文書",
-  "description": "【想定】\n業務連携・検査レポート・型付き分析データとして金額・数量 / 型付き文書を受け渡すケース。\n\n【生成内容】\n20レコードをxlsx, parquet, avro形式で出力します。同じバッチの全ファイルとSHA256を完了マニフェストへ記録。\n\n【確認事項】\n文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存。Parquet/Avroは項目定義から型を固定し、PDFは日本語の表を複数ページで出力します。\n\n【実行前】\n保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で編集できます。",
+  "description": "【想定】\n金額・数量 / 型付き文書の出力設定を確認する例です。\n\n【生成内容】\n数量と小数2桁の単価・金額をExcel、Parquet、Avroに出力します。同じバッチの全ファイルとSHA256を完了マニフェストに記録します。\n\n【確認事項】\n文字コード、列順、NULL、小数・日時の型、読み戻した件数を確認してください。Excelは既定で数式を実行せず文字列として保存します。ParquetとAvroは項目定義から型を固定し、PDFはページをまたぐ表にも対応します。\n\n【実行前】\n保存先プロファイルと出力容量を確認してください。形式ごとの詳細条件はファイル設定で変更できます。",
   "connection_id": "default",
   "connection_revision": null,
   "run_key": "60-decimal-documents",
@@ -142,6 +142,7 @@
     "operation": "upsert"
   },
   "files": {
+    "completion_mode": "manifest-v2",
     "formats": [
       "xlsx",
       "parquet",
@@ -194,6 +195,8 @@
     "http_body": "array",
     "topic_template": "",
     "payload_template": null,
+    "message_size_bytes": 0,
+    "duplicate_rate": 0.0,
     "delivery_attempts": null,
     "retry_backoff_ms": null
   },
