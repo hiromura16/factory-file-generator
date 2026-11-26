@@ -37,7 +37,7 @@ ssh -N -L 3561:127.0.0.1:3561 user@vm-address
 docker compose config --quiet
 docker compose up -d --build
 docker compose ps
-curl -fsS http://127.0.0.1:3561/healthz
+curl -fsS --retry 12 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3561/healthz
 curl -fsS http://127.0.0.1:3561/api/runs
 ```
 
@@ -56,7 +56,20 @@ docker compose -f compose.yaml -f compose.lakehouse-network.yaml config --quiet
 docker compose -f compose.yaml -f compose.lakehouse-network.yaml up -d --build
 ```
 
+管理画面と操作APIにはログインがありません。ホスト側で `127.0.0.1` にバインドしても、共有ネットワークの参加コンテナは管理画面と操作APIに到達できます。信頼済みの収集・試験サービス専用のネットワークを使います。
+
 既定のプロジェクト内ネットワークも残ります。共有ネットワーク上では専用の別名 `factory-file-generator` とコンテナ側のポートを使います。別ComposeのLakehouseがファイルを読む場合、アプリの `LANDING_DIR` と同じVM上のパスをLakehouseのランディングとしてマウントします。ファイルの共有にはDockerネットワークだけでは足りません。
+
+## VM上のNFSディレクトリへ出力する
+
+VMでNFSを事前マウントし、ホスト上の絶対パスを `NFS_MOUNT_PATH` に設定します。NFSを使う場合だけ、起動と更新に `-f compose.network-shares.yaml` を追加します。
+
+```sh
+docker compose -f compose.yaml -f compose.network-shares.yaml config --quiet
+docker compose -f compose.yaml -f compose.network-shares.yaml up -d --build
+```
+
+アプリの出力先には `/network/nfs` を設定し、UID 1000で書き込みできることを確認します。共有ネットワークも使う場合は、両方のオーバーレイを同じコマンドに指定します。
 
 ## 停止・更新
 

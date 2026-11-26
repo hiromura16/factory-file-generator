@@ -4,7 +4,7 @@
 
 | 種類 | リポジトリ | 画面ポート（例の変数名） | 収集方法 |
 | --- | --- | --- | --- |
-| SQL | [factory-mes-erp-simulator](https://github.com/hiromura16/factory-mes-erp-simulator) | `<SQL_UI_PORT>` | DBをCDC/クエリで取得 |
+| SQL | [factory-sql-data-loader](https://github.com/hiromura16/factory-sql-data-loader) | `<SQL_UI_PORT>` | DBをCDC/クエリで取得 |
 | ファイル | [factory-file-generator](https://github.com/hiromura16/factory-file-generator) | `<FILE_UI_PORT>` | landingのready.jsonを起点に取得 |
 | ストリーム | [factory-stream-simulator](https://github.com/hiromura16/factory-stream-simulator) | `<STREAM_UI_PORT>` | MQTT/Kafka/HTTP等 |
 | 設備 | [factory-equipment-simulator](https://github.com/hiromura16/factory-equipment-simulator) | `<EQUIPMENT_UI_PORT>` | OPC UA `<OPC_UA_PORT>` / Modbus TCP `<MODBUS_TCP_PORT>` |
