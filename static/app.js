@@ -538,14 +538,16 @@ function renderFileRun(target, root) {
   updateFileSelection();
 }
 
-// 共有マウントもあり得るので、通常実行では出力先を確認して版を固定する。
+// ローカル投入は画面で承認し、外部投入はサーバーの確認プランを使う。
 function fileRunSubmission() {
   const spec = runSpec();
   const destination = state.connections.find((item) => item.id === spec.connection_id);
   if (!destination) throw new Error("登録済みの出力先を選んでください。");
-  const formats = spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
-  const sidecars = spec.files.formats.includes("image") && spec.files.write_sidecars ? "（画像の付帯JSONあり）" : "";
-  if (!window.confirm("「" + destination.name + "」へ " + formats.join("・") + sidecars + " を投入します。続行しますか？")) return null;
+  if (destination.kind === "local") {
+    const formats = spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
+    const sidecars = spec.files.formats.includes("image") && spec.files.write_sidecars ? "（画像の付帯JSONあり）" : "";
+    if (!window.confirm("「" + destination.name + "」へ " + formats.join("・") + sidecars + " を投入します。続行しますか？")) return null;
+  }
   spec.connection_revision = destination.revision;
   return spec;
 }

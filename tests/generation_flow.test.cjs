@@ -27,7 +27,7 @@ function fixture() {
   };
   const requests = [];
   const context = vm.createContext({
-    document, structuredClone, window: { addEventListener() {}, confirm: () => false },
+    document, structuredClone, URL, window: { addEventListener() {}, confirm: () => false },
     fetch: async (route, options) => {
       requests.push({ route, body: JSON.parse(options.body || "null") });
       return { ok: true, json: async () => ({ id: "test-job" }) };
@@ -71,9 +71,9 @@ test("形式が未選択でもJSON編集欄を開ける。実行時は選択が�
   assert.throws(() => run("runSpec()"), /形式を1つ以上/);
 });
 
-test("通常出力は明示承認が必要、クイックスタートは編集モデルを渡さない", async () => {
+test("ローカル出力は画面で承認し、クイックスタートには編集モデルを渡さない", async () => {
   const { run, requests } = fixture();
-  assert.equal(run("fileRunSubmission()"), null);
+  assert.equal(run("fileRunSubmission().connection_revision"), 2);
   run('state.connections[0].kind = "local"');
   assert.equal(run("fileRunSubmission()"), null);
   run("window.confirm = () => true");
@@ -130,4 +130,32 @@ test("新規画面と単独選択・組み合わせがプレビューと送信�
   assert.equal(run("'primary_key' in fileSpecView(state.info.defaults).fields[0]"), false);
   assert.equal(run("'sql' in fileSpecView(state.info.defaults)"), false);
   assert.equal(run("state.info.defaults.fields[0].primary_key"), true);
+});
+
+test("外部出力はサーバーが返す確認だけを表示し、取り消したら再送しない", async () => {
+  const { run, requests } = fixture();
+  run(`window.location = { origin: "http://localhost" };
+    var confirmations = 0;
+    window.confirm = (message) => {
+      confirmations += 1;
+      if (!message.includes("外部") || !message.includes("版 2")) throw new Error(message);
+      return false;
+    };
+    var initialFetch = fetch;
+    fetch = async (route, options) => {
+      await initialFetch(route, options);
+      return route === "/api/runs" ? { status: 428 } : {
+        ok: true,
+        json: async () => ({
+          confirmation_token: "approval",
+          summary: { operation: "ファイルを出力", destination_name: "外部", destination_id: "remote", revision: 2, rows: 99 },
+        }),
+      };
+    };`);
+  const spec = run("fileRunSubmission()");
+  assert.equal(run("confirmations"), 0);
+  await assert.rejects(run("api")("/api/runs", spec), /取り消しました/);
+  assert.equal(run("confirmations"), 1);
+  assert.deepEqual(requests.map(({ route }) => route), ["/api/runs", "/api/operations/plan"]);
+  assert.equal(requests[1].body.payload.connection_revision, 2);
 });
