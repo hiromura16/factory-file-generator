@@ -1,4 +1,6 @@
 """初回のUIとファイル生成の入口を、隔離した一時領域で検証する。"""
+from test_operation_gate import confirmed_post
+
 import json
 import os
 import shutil
@@ -183,7 +185,7 @@ def test_preview_and_local_run_use_only_selected_formats(tmp_path, formats, expe
         assert client.get("/api/runs").json()["runs"] == []
         assert not list((tmp_path / "exports").glob("**/*"))
 
-        run = client.post("/api/runs", json=spec)
+        run = confirmed_post(client,"/api/runs", json=spec)
         assert run.status_code == 202, run.text
         run_id = run.json()["id"]
         app.state.runtime.thread.join(timeout=10)

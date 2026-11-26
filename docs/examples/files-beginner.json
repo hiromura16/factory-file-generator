@@ -1,0 +1,105 @@
+{
+  "name": "検査結果 / CSVとJSONL / 入れ子JSON",
+  "description": "【想定】検査装置が出力する検査結果ファイルをlandingに置き、ready.jsonを合図に取り込む。\n【異常】300〜399件目で寸法が1件ごとに0.01mmずつ増える。",
+  "run_key": "inspection-001",
+  "seed": 7,
+  "rows": 3,
+  "target_rate": 0,
+  "batch_size": 100,
+  "parameters": {
+    "start_time": "2026-12-01T00:00:00+09:00",
+    "lots": [
+      "LOT-A01",
+      "LOT-A02",
+      "LOT-B01"
+    ]
+  },
+  "fields": [
+    {
+      "name": "inspection_id",
+      "data_type": "string",
+      "generator": "uuid",
+      "primary_key": true,
+      "length": 36
+    },
+    {
+      "name": "lot_id",
+      "data_type": "string",
+      "generator": "choice",
+      "choices": "$lots",
+      "length": 16
+    },
+    {
+      "name": "serial_no",
+      "data_type": "integer",
+      "generator": "sequence",
+      "start": 100000
+    },
+    {
+      "name": "serial_code",
+      "data_type": "string",
+      "generator": "template",
+      "template": "SN-{serial_no:08d}",
+      "length": 16
+    },
+    {
+      "name": "width_mm",
+      "data_type": "number",
+      "generator": "normal",
+      "mean": 25.0,
+      "stddev": 0.05,
+      "scale": 3
+    },
+    {
+      "name": "judge",
+      "data_type": "string",
+      "generator": "choice",
+      "choices": [
+        "OK",
+        "NG"
+      ],
+      "weights": [
+        97,
+        3
+      ],
+      "length": 2
+    },
+    {
+      "name": "inspected_at",
+      "data_type": "datetime",
+      "generator": "timestamp",
+      "start": "$start_time",
+      "step": 2.5
+    }
+  ],
+  "anomalies": [
+    {
+      "name": "寸法ドリフト",
+      "field": "width_mm",
+      "operation": "ramp",
+      "value": 0.01,
+      "from_row": 300,
+      "to_row": 399
+    }
+  ],
+  "files": {
+    "formats": [
+      "csv",
+      "json"
+    ],
+    "records_per_file": 100,
+    "json_mode": "jsonl",
+    "json_template": {
+      "id": "$row.inspection_id",
+      "lot": "$row.lot_id",
+      "serial": "$row.serial_code",
+      "measure": {
+        "width_mm": "$row.width_mm"
+      },
+      "result": "$row.judge",
+      "at": "$row.inspected_at",
+      "source_run": "$meta.run_key"
+    },
+    "csv_encoding": "utf-8"
+  }
+}

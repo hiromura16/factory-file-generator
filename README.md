@@ -1,6 +1,34 @@
 # ファイル生成ツール / JSON・CSV・画像・業務文書
 
-[プリセット一覧](presets/README.md) · [Dokploy配備手順](docs/dokploy.md) · [コード読解ガイド](CODE_GUIDE.ja.md)
+CSVを30行作り、10行ずつ3ファイルに分ける手順を[初心者マニュアル](docs/user-manual.md)で確認できます。
+
+## 起動して最初の画面を開く
+
+Linux VMに Docker Compose を用意します。別端末からの接続やホスト側のマウントは[VM導入手順](docs/vm-compose.md)を参照してください。
+
+```sh
+python3 scripts/init_local.py --private-dir ./private --data-dir ./data --env-file .env
+docker compose up -d --build
+```
+
+VMで `http://127.0.0.1:3561/` を開きます。メニューの「ヘルプ」から、見本の出し方、設定、APIを調べられます。 別端末から管理操作をする場合は[管理画面の認証](docs/vm-compose.md#管理画面の認証)も設定します。
+
+開発時に直接起動する場合は Python 3.12〜3.14 と uv を使用します。必要なPythonは uv でインストールできます。
+
+```sh
+uv sync --frozen
+DATA_DIR=./data uv run --frozen uvicorn app:app --host 127.0.0.1 --port 3561
+```
+
+## 操作と設定の資料
+
+[8アプリの構成](docs/architecture.md)から役割と既定ポートを調べられます。
+
+- [初心者マニュアル](docs/user-manual.md) · [ひな型を選ぶ・作る](docs/preset-guide.md) · [付属のひな型一覧](presets/README.md)
+- [設定リファレンス](docs/settings-reference.md) · [JSONの書き方](docs/template-guide.md) · [AI向け作成ハーネス](docs/AI_TEMPLATE_HARNESS.md)
+- [APIの使い方](docs/api-guide.md) · [用語集](docs/glossary.md) · [コードを拡張する](docs/code-reading-guide.md) · [変更履歴](CHANGELOG.md) · [レビュー対応表](docs/quality-review.md)
+AIクライアント向けの接続方法は[CLI・MCPの使い方](docs/mcp.md)を参照してください。
+
 
 任意のデータ項目からJSON、CSV、人工的な検査パターン画像、XLSX、XML、Parquet、Avro、PDFを生成します。
 
@@ -21,7 +49,7 @@ JSONは配列・1件1ファイル・JSONL、任意の入れ子構造、整形、
 
 # Data Source Studio 共通仕様
 
-3つのツールはそれぞれ独立したリポジトリ・アプリ・永続ボリュームです。設定は業種に依存しません。v2では接続プロファイル、任意のデータ項目、生成ルール、実行条件を画面で編集できます。
+各アプリは独立したコンテナと永続ボリュームを持ちます。設定は業種に依存しません。v2では接続プロファイル、任意のデータ項目、生成ルール、実行条件を画面で編集できます。
 
 ## 操作ガイド
 
@@ -61,27 +89,15 @@ JSONは配列・1件1ファイル・JSONL、任意の入れ子構造、整形、
 
 実行は各ツール1件ずつ。全件をメモリには保持せず、行サイズに合わせてバッチを縮小します。ホストのメモリ余力・ディスク余力を監視し、閾値に達した場合は停止します。設定と履歴は永続化し、プロセス再起動で中断された実行はinterruptedになります。実行開始時に接続プロファイルの版を固定します。
 
-## ローカル起動
-
-Python 3.12とuv、Docker Composeを使用します。
-
-```sh
-uv sync --frozen
-uv run python scripts/init_local.py --private-dir ./private --data-dir ./data --env-file .env
-docker compose up -d --build
-```
-
-`.env`でポートと必要なマウント元を設定します。管理画面・操作API・メトリクスはログイン不要です。`uv run uvicorn app:app`で直接起動する場合はDATA_DIRを設定してください。
-
-`DATA_DIR=/data`に設定DB、暗号鍵、実行履歴を保存。接続用ファイルの配置先はCONNECTION_FILES_DIR（既定DATA_DIR/connection-files）です。秘密鍵と設定DBを一緒に公開しないでください。
-
 ## APIと検証
 
-ログイン不要のAPI: `/api/info`、`/api/schemas`、`/api/connections`、`/api/presets`、`/api/preview`、`/api/runs`。プロファイル保存後の`/api/connections/{id}/test`は保存済み設定を検証します。`/healthz`と`/metrics`も認証不要です。UIとAPIの変更操作は同一オリジンとJSONを要求します。
+契約スキーマを更新するには `uv run --frozen python scripts/export_contracts.py` を実行します。`--check` を付けると、配布ファイルを変更せずに現在の定義と照合します。
+
+管理APIの例: `/api/info`、`/api/schemas`、`/api/connections`、`/api/presets`、`/api/preview`、`/api/runs`。プロファイル保存後の`/api/connections/{id}/test`は保存済み設定を検証します。`/healthz` は稼働確認、`/metrics` は管理用のメトリクスです。UIとAPIの変更操作は同一オリジンとJSONを要求します。
 
 ```sh
 uv run pytest -q
-uvx ruff check .
+uvx ruff@0.17.6 check --select E4,E7,E9,F .
 ```
 
 過去の実行履歴・設定・出力ファイルは保持します。旧設定に含まれる他のツール向けの欄は、ファイル生成の画面には表示しません。
@@ -114,6 +130,6 @@ Composeの管理ラベルは既定で `factory.guard.managed=true` です。外�
 
 既存の外部監視との互換性は未確認です。変更前に監視側が照合するラベル名と影響を確認してください。この設定は既存コンテナや監視設定を自動移行せず、デプロイも行いません。
 
-## Dokployでの配置とプロキシ
+## ライセンス
 
-[Dokploy配置手順](docs/dokploy.md)に、準備・環境変数・永続化・非公開アクセス・確認・更新と、ビルド/実行時のプロキシの違いをまとめています。
+アプリ本体は[MITライセンス](LICENSE)です。同梱フォントとSwagger UIのライセンスは各配布ディレクトリにあります。

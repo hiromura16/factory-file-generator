@@ -1,4 +1,4 @@
-# 読解: ホスト側で準備したNFS領域を追加するoverride。アプリにマウント管理権限は与えない。
+# NFSはホストでマウントし、この設定でコンテナへ渡します。
 # Host-side NFS mount; app stays unprivileged. Set NFS_MOUNT_PATH to the mounted directory.
 services:
   app:

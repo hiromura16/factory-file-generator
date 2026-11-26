@@ -1,7 +1,6 @@
 // 設定画面の入口。APIのスキーマから編集欄を作り、接続・生成・履歴の操作をサーバーへ渡す。
 "use strict";
 const $ =
-  /* 指定したセレクターに最初に一致するDOM要素を返す。一致しなければnull。 */
   (s) => document.querySelector(s),
   clone =
     /* 設定を構造化複製し、編集が保存済みの元オブジェクトへ波及するのを避ける。 */
@@ -36,7 +35,7 @@ function notify(text, error = false) {
 }
 // 本文なしはGET、ありはJSON POSTで同一画面のAPIを呼ぶ。JSONを返し、HTTP失敗は詳細付き例外に変換する。
 async function api(path, body) {
-  const r = await fetch(
+  const r = await fetchWithOperationConfirmation(
     path,
     body === undefined
       ? {}
@@ -46,19 +45,14 @@ async function api(path, body) {
           body: JSON.stringify(body),
         },
   );
-  const value = await r.json();
-  if (!r.ok)
-    throw new Error(
-      typeof value.detail === "string"
-        ? value.detail
-        : JSON.stringify(value.detail || value),
-    );
-  return value;
+  const data = await readApiJson(r);
+  showPreviewWarnings(path, data);
+  return data;
 }
 const action =
   /* ボタンを操作関数へ接続し、実行中の再操作防止と通知を共通化する。 */
   (id, fn) =>
-  $(id).addEventListener("click", /* クリック既定動作を止め、処理中は押下不可にする。失敗は通知し、成否にかかわらず再度有効にする。 */ async (e) => {
+  $(id).addEventListener("click", async (e) => {
     e.preventDefault();
     const b = e.currentTarget;
     b.disabled = true;
@@ -76,10 +70,10 @@ function tab(id) {
   for (const panel of panels) rememberJobPanes(panel);
   document
     .querySelectorAll(".tab")
-    .forEach(/* 実際のタブ要素はDOMのIDで選択状態を判定する。 */ (n) => n.classList.toggle("active", n.id === id));
+    .forEach((n) => n.classList.toggle("active", n.id === id));
   document
     .querySelectorAll(".nav")
-    .forEach(/* ナビ項目はdata-tabで選択先との一致を判定する。 */ (n) => n.classList.toggle("active", n.dataset.tab === id));
+    .forEach((n) => n.classList.toggle("active", n.dataset.tab === id));
   hideTip();
   for (const panel of panels) restoreJobPanes(panel);
 }
@@ -306,10 +300,10 @@ function control(name, schema, value, set, root) {
 // 表示対象の各プロパティを描画し、モデルで未設定の項目だけ初期値を補う。
 function renderObject(container, schema, model, root, exclude = []) {
   for (const [name, prop] of Object.entries(schema.properties || {})) {
-    if (exclude.includes(name)) continue;
+    if (exclude.includes(name) || prop.ui_hidden) continue;
     if (!(name in model)) model[name] = defaultValue(prop, root);
     container.append(
-      control(name, prop, model[name], /* 個別コントロールの更新を対応するモデルのプロパティへ書き戻す。 */ (v) => (model[name] = v), root),
+      control(name, prop, model[name], (v) => (model[name] = v), root),
     );
   }
 }
@@ -544,14 +538,16 @@ function renderFileRun(target, root) {
   updateFileSelection();
 }
 
-// 共有マウントもあり得るので、通常実行では出力先を確認して版を固定する。
+// ローカル投入は画面で承認し、外部投入はサーバーの確認プランを使う。
 function fileRunSubmission() {
   const spec = runSpec();
   const destination = state.connections.find((item) => item.id === spec.connection_id);
   if (!destination) throw new Error("登録済みの出力先を選んでください。");
-  const formats = spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
-  const sidecars = spec.files.formats.includes("image") && spec.files.write_sidecars ? "（画像の付帯JSONあり）" : "";
-  if (!window.confirm("「" + destination.name + "」へ " + formats.join("・") + sidecars + " を投入します。続行しますか？")) return null;
+  if (destination.kind === "local") {
+    const formats = spec.files.formats.map((key) => FILE_FORMATS.find(([id]) => id === key)?.[1] || key);
+    const sidecars = spec.files.formats.includes("image") && spec.files.write_sidecars ? "（画像の付帯JSONあり）" : "";
+    if (!window.confirm("「" + destination.name + "」へ " + formats.join("・") + sidecars + " を投入します。続行しますか？")) return null;
+  }
   spec.connection_revision = destination.revision;
   return spec;
 }
@@ -1178,7 +1174,7 @@ async function refreshPresets() {
   state.presets.forEach(/* プリセットを表示名とIDで識別できる選択肢として追加する。 */ (p) =>
     select.append(el("option", { value: p.id }, p.name + " · " + p.id)),
   );
-  if (state.presets.some(/* 更新前のIDが新一覧に残っているか確認する。 */ (p) => p.id === previous)) select.value = previous;
+  if (state.presets.some((p) => p.id === previous)) select.value = previous;
   updatePresetDetails();
 }
 // 検証済みフォームをJSONへ変換する。履歴の接続リビジョンと再送指定はプリセットへ持ち込まない。
@@ -1192,13 +1188,14 @@ function showJson() {
   }, null, 2);
 }
 // 入力欄のJSONを解析し、プレビューAPIが検証した設定を返す。構文・検証失敗は呼出側へ伝える。
-async function parsePreset(parsed = JSON.parse($("#presetJson").value)) {
-  delete parsed.sql;
-  delete parsed.stream;
-  const verified = (await api("/api/preview", parsed)).validated_spec;
-  delete verified.sql;
-  delete verified.stream;
-  return verified;
+async function parsePreset(parsed = readPresetJson($("#presetJson").value), compact = false) {
+  const preview = await api("/api/preview", parsed);
+  const result = compact ? preview.compact_spec : preview.validated_spec;
+  if (!compact) {
+    delete result.sql;
+    delete result.stream;
+  }
+  return result;
 }
 // 値を整形JSONとしてブラウザーからダウンロードし、不要になったオブジェクトURLを解放する。
 function download(value, name) {
@@ -1209,7 +1206,7 @@ function download(value, name) {
   );
   const a = el("a", { href: url, download: name });
   a.click();
-  setTimeout(/* ダウンロード開始後、遅延して一時URLを解放する。 */ () => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 // プレビュー応答をJSONと行表に表示し、欠落値と明示的な値を区別する。書込なしの表示は応答を基に決定する。
 function previewResult(data) {
@@ -1316,7 +1313,7 @@ function jobCard(run) {
     }),
   );
   c.append(progress);
-  if (run.error) c.append(el("p", { class: "danger" }, run.error));
+  if (run.error) c.append(el("p", { class: "danger" }, run.error_message || run.error));
   if (["running", "stopping"].includes(run.status)) {
     const b = el("button", { class: "danger" }, "停止");
     b.addEventListener("click", /* 停止APIを呼び出し、受理後に履歴を更新する。失敗しても画面操作を続けられるよう通知する。 */ async () => {
@@ -1717,7 +1714,7 @@ async function init() {
       throw new Error(
         "プリセットIDを英数字・下線・ハイフンで指定してください。",
       );
-    const draft = JSON.parse($("#presetJson").value);
+    const draft = readPresetJson($("#presetJson").value);
     const displayName = $("#presetDisplayName").value.trim();
     const purpose = $("#presetPurpose").value.trim();
     if (displayName) draft.name = displayName;
@@ -1733,7 +1730,7 @@ async function init() {
     notify("プリセット " + id + " を保存しました。");
   });
   action("#exportPreset", /* JSONを検証してからダウンロードし、空の名前には既定値を使う。 */ async () =>
-    download(await parsePreset(), ($("#presetId").value || "preset") + ".json"),
+    download(await parsePreset(undefined, $("#compactExport").checked), ($("#presetId").value || "preset") + ".json"),
   );
   $("#importPreset").addEventListener("change", /* 選択ファイルをサイズ制限内で読み、検証済み設定を表示する。ファイル名は保存候補IDへ変換し、自動保存はしない。 */ async (e) => {
     try {
