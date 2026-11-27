@@ -76,6 +76,8 @@ function tab(id) {
     .forEach((n) => n.classList.toggle("active", n.dataset.tab === id));
   hideTip();
   for (const panel of panels) restoreJobPanes(panel);
+  if (id === "presets") window.FactoryPresetEditor.activate();
+
 }
 // スキーマ内のローカル参照をルートの定義から解決する。参照でなければ元を返す。
 function deref(schema, root) {
@@ -1177,25 +1179,10 @@ async function refreshPresets() {
   if (state.presets.some((p) => p.id === previous)) select.value = previous;
   updatePresetDetails();
 }
-// 検証済みフォームをJSONへ変換する。履歴の接続リビジョンと再送指定はプリセットへ持ち込まない。
-function showJson() {
+// ファイル形式が未選択の設定も、プリセット編集画面で補完できます。
+function capturePreset() {
   validateForm("#runForm");
-  const view = fileSpecView(state.spec);
-  $("#presetJson").value = JSON.stringify({
-    ...view,
-    connection_revision: null,
-    task: "generate",
-  }, null, 2);
-}
-// 入力欄のJSONを解析し、プレビューAPIが検証した設定を返す。構文・検証失敗は呼出側へ伝える。
-async function parsePreset(parsed = readPresetJson($("#presetJson").value), compact = false) {
-  const preview = await api("/api/preview", parsed);
-  const result = compact ? preview.compact_spec : preview.validated_spec;
-  if (!compact) {
-    delete result.sql;
-    delete result.stream;
-  }
-  return result;
+  return { ...fileSpecView(state.spec), connection_revision: null, task: "generate" };
 }
 // 値を整形JSONとしてブラウザーからダウンロードし、不要になったオブジェクトURLを解放する。
 function download(value, name) {
@@ -1681,7 +1668,6 @@ async function init() {
       state.spec = clone(p.spec);
       state.spec.connection_revision = null;
       renderRun();
-      $("#presetId").value = p.id;
       notify("プリセットを読み込みました。");
     }
   });
@@ -1690,68 +1676,25 @@ async function init() {
     renderRun();
     notify("実行設定を初期値に戻しました。");
   });
-  action("#toPreset", /* 現在のフォームからプリセット用JSONを用意し、プリセット画面を開く。 */ () => {
-    showJson();
-    $("#presetId").value = "";
-    $("#presetDisplayName").value = "";
-    $("#presetPurpose").value = "";
-    tab("presets");
-    $("#presetId").focus();
-  });
-  action("#refreshJson", /* 表示中のJSONを現在のフォームの検証済み設定で更新する。 */ () => {
-    showJson();
-    notify("画面の設定をJSONに反映しました。");
-  });
-  action("#applyJson", /* 編集JSONをサーバーで検証した後にフォームへ反映し、生成画面へ戻す。 */ async () => {
-    state.spec = await parsePreset();
-    renderRun();
-    notify("JSONを検証し、画面へ反映しました。");
-    tab("generate");
-  });
-  action("#savePreset", /* IDを検査し、サーバー検証済みの設定を保存する。成功後にフォームと一覧を同期する。 */ async () => {
-    const id = $("#presetId").value;
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id))
-      throw new Error(
-        "プリセットIDを英数字・下線・ハイフンで指定してください。",
-      );
-    const draft = readPresetJson($("#presetJson").value);
-    const displayName = $("#presetDisplayName").value.trim();
-    const purpose = $("#presetPurpose").value.trim();
-    if (displayName) draft.name = displayName;
-    if (purpose) draft.description = purpose;
-    const spec = await parsePreset(draft);
-    await api("/api/presets/" + id, spec);
-    $("#presetJson").value = JSON.stringify(spec, null, 2);
-    state.spec = spec;
-    renderRun();
-    await refreshPresets();
-    $("#presetSelect").value = id;
-    updatePresetDetails();
-    notify("プリセット " + id + " を保存しました。");
-  });
-  action("#exportPreset", /* JSONを検証してからダウンロードし、空の名前には既定値を使う。 */ async () =>
-    download(await parsePreset(undefined, $("#compactExport").checked), ($("#presetId").value || "preset") + ".json"),
-  );
-  $("#importPreset").addEventListener("change", /* 選択ファイルをサイズ制限内で読み、検証済み設定を表示する。ファイル名は保存候補IDへ変換し、自動保存はしない。 */ async (e) => {
-    try {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (file.size > 2 * 1024 * 1024)
-        throw new Error("JSONは2MiB以下にしてください。");
-      $("#presetJson").value = await file.text();
-      state.spec = await parsePreset();
-      $("#presetId").value =
-        file.name
-          .replace(/\.json$/i, "")
-          .replace(/[^A-Za-z0-9_-]/g, "-")
-          .slice(0, 64) || "imported";
+  const presetEditor = window.FactoryPresetEditor;
+  presetEditor.configure({
+    initial: () => ({ ...clone(state.spec || state.info.defaults), connection_revision: null, task: "generate" }),
+    capture: capturePreset,
+    apply: (value) => {
+      state.spec = value;
       renderRun();
-      notify(
-        "JSONを読み込み、画面へ反映しました。保存するとプリセットとして残せます。",
-      );
-    } catch (err) {
-      notify(err.message, true);
-    }
+      tab("generate");
+      notify("プリセットの設定を反映しました。");
+    },
+    refresh: refreshPresets,
+    connectionUrl: "/api/connections",
+  });
+  action("#toPreset", () => {
+    if (presetEditor.open(capturePreset())) tab("presets");
+  });
+  action("#editSelectedPreset", () => {
+    const id = $("#presetSelect").value;
+    if (id && presetEditor.open(null, { id })) tab("presets");
   });
   action("#preview", /* 書き込みなしの見本を取得し、待機中の変更で古くなった応答は表示しない。 */ async () => {
     const revision = previewRevision;
@@ -1841,7 +1784,6 @@ async function init() {
     );
   });
   await refreshHistory();
-  showJson();
   setInterval(/* 実行中または履歴表示中だけ、定期的に最新の履歴を取得する。 */ () => {
     if (state.current || $("#history").classList.contains("active"))
       refreshHistory().catch(/* 定期更新の一時的な失敗を握りつぶし、次回のポーリングで回復できるようにする。 */ () => {});
