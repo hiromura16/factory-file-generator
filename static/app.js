@@ -1179,6 +1179,11 @@ async function refreshPresets() {
   if (state.presets.some((p) => p.id === previous)) select.value = previous;
   updatePresetDetails();
 }
+// ファイル形式が未選択の設定も、プリセット編集画面で補完できます。
+function capturePreset() {
+  validateForm("#runForm");
+  return { ...fileSpecView(state.spec), connection_revision: null, task: "generate" };
+}
 // 値を整形JSONとしてブラウザーからダウンロードし、不要になったオブジェクトURLを解放する。
 function download(value, name) {
   const url = URL.createObjectURL(
@@ -1672,7 +1677,6 @@ async function init() {
     notify("実行設定を初期値に戻しました。");
   });
   const presetEditor = window.FactoryPresetEditor;
-  const capturePreset = () => ({ ...clone(runSpec()), connection_revision: null, task: "generate" });
   presetEditor.configure({
     initial: () => ({ ...clone(state.spec || state.info.defaults), connection_revision: null, task: "generate" }),
     capture: capturePreset,
